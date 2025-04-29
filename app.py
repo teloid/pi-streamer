@@ -409,44 +409,51 @@ def download_playlist(subpath):
 @app.route('/upload/<path:subpath>', methods=['POST'])
 @auth.login_required
 def upload_file_handler(subpath):
-    """Handles file uploads to the specified subpath."""
     target_folder_path = get_relative_path_from_request(subpath)
     app.logger.debug(f"Upload Handler: Target Folder = '{target_folder_path}'")
     target_dir_abs = file_utils.get_safe_fullpath(target_folder_path)
 
+    # --- Basic Directory Validation ---
     if target_dir_abs is None or not os.path.isdir(target_dir_abs):
-        flash(f"Upload failed: Target directory '{target_folder_path or '/'}' not found or invalid.", "error")
-        return redirect(request.headers.get("Referer") or url_for('browse'))
+        app.logger.error(f"Upload failed: Target directory invalid or not found. Path='{target_folder_path}' Abs='{target_dir_abs}'")
+        # Return JSON error for fetch request
+        return jsonify({"success": False, "error": f"Target directory '{target_folder_path or '/'}' not found or invalid."}), 400 # Bad Request
 
-    uploaded_files = request.files.getlist('file')
-    if not uploaded_files or all(f.filename == '' for f in uploaded_files):
-         flash('No files selected for upload.', 'warning')
-         return redirect(url_for('browse', subpath=target_folder_path))
+    # --- Process SINGLE file from the request (JS sends one at a time) ---
+    if 'file' not in request.files:
+        return jsonify({"success": False, "error": "No 'file' part in the request."}), 400
 
-    success_count = 0; error_files = []
-    for file in uploaded_files:
-        if file and file.filename:
-            filename = secure_filename(file.filename)
-            if not filename:
-                app.logger.warning(f"Skipping upload due to invalid filename: original='{file.filename}'")
-                error_files.append(f"'{file.filename or '[Empty]'}' (invalid)")
-                continue
-            destination_abs = os.path.join(target_dir_abs, filename)
-            if os.path.exists(destination_abs):
-                app.logger.warning(f"Upload skipped: File '{filename}' already exists in '{target_folder_path}'.")
-                error_files.append(f"'{filename}' (exists)")
-                continue
-            try:
-                file.save(destination_abs)
-                app.logger.info(f"File '{filename}' uploaded successfully to '{target_folder_path}'")
-                success_count += 1
-            except Exception as e:
-                app.logger.error(f"Failed to save uploaded file '{filename}' to '{destination_abs}': {e}", exc_info=True)
-                error_files.append(f"'{filename}' (error)")
+    file = request.files['file']
 
-    if success_count > 0: flash(f"Successfully uploaded {success_count} file(s).", 'success')
-    if error_files: flash(f"Failed/Skipped {len(error_files)} file(s): {', '.join(error_files)}", 'error')
-    return redirect(url_for('browse', subpath=target_folder_path)) # Redirect back
+    if not file or file.filename == '':
+        return jsonify({"success": False, "error": "No file selected or filename is empty."}), 400
+
+    original_filename = file.filename # Keep original for messages
+    filename = secure_filename(original_filename)
+
+    if not filename:
+        app.logger.warning(f"Upload skipped: Invalid filename after sanitizing. Original='{original_filename}'")
+        return jsonify({"success": False, "error": f"Filename '{original_filename}' is invalid or not allowed."}), 400
+
+    destination_abs = os.path.join(target_dir_abs, filename)
+
+    # --- Check if file exists ---
+    if os.path.exists(destination_abs):
+        app.logger.warning(f"Upload skipped: File '{filename}' already exists in '{target_folder_path}'.")
+        # Return specific error for existing file
+        return jsonify({"success": False, "error": f"File '{filename}' already exists."}), 409 # Conflict
+
+    # --- Attempt to save ---
+    try:
+        file.save(destination_abs)
+        app.logger.info(f"File '{filename}' uploaded successfully to '{target_folder_path}'")
+        # Return success JSON
+        # We use flash messages later for the overall summary after page reload
+        return jsonify({"success": True, "filename": filename}), 201 # Created
+    except Exception as e:
+        app.logger.error(f"Failed to save uploaded file '{filename}' to '{destination_abs}': {e}", exc_info=True)
+        # Return server error JSON
+        return jsonify({"success": False, "error": f"Server error saving '{filename}'. Check server logs."}), 500 # Internal Server Error
 
 
 @app.route('/create_folder/', defaults={'subpath': ''}, methods=['POST'])

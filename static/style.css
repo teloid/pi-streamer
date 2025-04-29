@@ -2,30 +2,42 @@
 
 /* --- Base HTML & Body Styles --- */
 html {
-    box-sizing: border-box; /* Better box model */
+    box-sizing: border-box;
+    overflow-y: scroll; /* Force vertical scrollbar always */
 }
+
 *, *:before, *:after {
     box-sizing: inherit;
 }
 
 body {
-    background-color: #1e1e1e; /* Dark background */
-    color: #e0e0e0; /* Light grey text */
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; /* System font stack */
+    /* ... keep existing body styles ... */
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     margin: 0;
     padding: 0;
-    display: flex; /* Use flexbox for sticky footer */
+    display: flex;
     flex-direction: column;
-    min-height: 100vh; /* Ensure body takes at least full viewport height */
-    line-height: 1.6; /* Improve readability */
+    min-height: 100vh;
+    line-height: 1.6;
 }
 
 /* --- Layout Containers --- */
 .container {
-    max-width: 1100px; /* Max width for content */
-    margin: 0 auto; /* Center the container */
-    padding: 0 20px; /* Padding on sides */
+    max-width: 1100px; /* Adjust as desired */
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 20px;
+    padding-right: 20px;
     width: 100%;
+    box-sizing: border-box;
+}
+
+.content-area {
+    padding-top: 30px;
+    padding-bottom: 40px;
+    flex-grow: 1; /* Allows main to fill vertical space */
 }
 
 /* --- Header Styles --- */
@@ -37,9 +49,9 @@ body {
     flex-shrink: 0; /* Prevent header from shrinking */
 }
 
-.header-content {
+.header-content { /* Already uses flex, should be fine */
     display: flex;
-    justify-content: space-between; /* Logo left, nav right */
+    justify-content: space-between;
     align-items: center;
 }
 
@@ -74,15 +86,8 @@ body {
 }
 
 /* --- Footer Styles --- */
-.site-footer {
-    background-color: #2a2a2a; /* Slightly lighter dark grey */
-    color: #aaa; /* Dimmed text */
-    padding: 15px 0;
-    margin-top: auto; /* Push footer to bottom with flexbox */
-    font-size: 0.9em;
-    text-align: center;
-    border-top: 1px solid #383838; /* Subtle top border */
-    flex-shrink: 0; /* Prevent footer from shrinking */
+.site-footer .container { /* Footer content already inside container */
+    text-align: center; /* Center the <p> tag inside */
 }
 
 /* --- Flash Messages (Success, Error, etc.) --- */
