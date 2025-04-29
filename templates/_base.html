@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pi Streamer{% endblock %}</title>
+    {# Link to the CSS file in the static folder #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {# Allows individual pages to add extra head elements (like specific CSS or JS links) #}
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-content">
+             {# Link the logo back to the main browse page #}
+             <a href="{{ url_for('browse') }}" class="logo">Pi Streamer</a>
+            <nav>
+                {# Show different navigation links based on login status #}
+                {% if session.logged_in %}
+                    <a href="{{ url_for('browse') }}">Browse</a>
+                    <a href="{{ url_for('logout') }}">Logout</a>
+                {% else %}
+                     {# If not logged in, only show login link (welcome page leads here) #}
+                     <a href="{{ url_for('login') }}">Login</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="container content-area">
+        {# Display flashed messages (like success, error, warning) #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {# This is where the content of individual pages will be injected #}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            {# Simple footer with current year #}
+            <p>© {{ now.strftime('%Y') }} Pi Streamer</p> {# Requires passing 'now' from Flask or using context processor #}
+            {# To make now() work easily, add this to app.py:
+               import datetime
+               @app.context_processor
+               def inject_now():
+                   return {'now': datetime.datetime.utcnow()}
+            #}
+        </div>
+    </footer>
+
+    {# Allows individual pages to add extra script elements at the end of the body #}
+    {% block scripts_extra %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,411 @@
+{% extends "_base.html" %} {# Inherits the base layout #}
+
+{% block title %}Browse: {{ current_folder_name }} - Pi Streamer{% endblock %} {# Dynamic title #}
+
+{% block head_extra %} {# Styles specific to the browser page #}
+<style>
+    /* --- Modal (Text Viewer) Styles --- */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); }
+    .modal-content { background-color: #2d2d2d; margin: 5% auto; padding: 20px; border: 1px solid #555; width: 80%; max-width: 900px; color: #e0e0e0; border-radius: 5px; position: relative; max-height: 80vh; display: flex; flex-direction: column; }
+    .modal-header { padding-bottom: 10px; border-bottom: 1px solid #444; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { margin: 0; font-size: 1.2em; color: #00bcd4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 20px; }
+    .modal-body { overflow-y: auto; flex-grow: 1; }
+    .modal-body pre { white-space: pre-wrap; word-wrap: break-word; background-color: #1e1e1e; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #ccc; }
+    .close-button { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; background: none; border: none; padding: 0 5px; line-height: 1; }
+    .close-button:hover, .close-button:focus { color: #fff; text-decoration: none; }
+
+    /* --- Image Modal Styles --- */
+    .modal.image-modal { background-color: rgba(0, 0, 0, 0.9); }
+    .image-modal-content { background-color: transparent; border: none; width: 90%; max-width: 90vw; height: 90vh; padding: 0; box-shadow: none; margin: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
+    .image-modal-content .modal-header { display: none; /* Hide header by default */ position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background-color: rgba(0,0,0,0.5); color: #fff; padding: 5px 15px; border-radius: 5px; z-index: 1002; }
+    .image-modal-body { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; overflow: hidden; }
+    .image-container { flex-grow: 1; display: flex; justify-content: center; align-items: center; height: 100%; max-width: calc(100% - 100px); }
+    #modalImage { display: block; max-width: 100%; max-height: 100%; object-fit: contain; transition: opacity 0.3s ease-in-out; }
+    #imageLoadingIndicator { display: none; color: #ccc; padding: 20px; font-size: 1.2em; }
+    .image-close-button { position: absolute; top: 15px; right: 25px; font-size: 40px; color: #fff; background-color: rgba(0, 0, 0, 0.4); border: none; border-radius: 50%; width: 40px; height: 40px; line-height: 35px; text-align: center; cursor: pointer; z-index: 1003; transition: background-color 0.2s; }
+    .image-close-button:hover { background-color: rgba(0, 0, 0, 0.7); }
+    .nav-arrow { background-color: rgba(0, 0, 0, 0.3); color: white; border: none; font-size: 3em; cursor: pointer; padding: 15px 10px; z-index: 1001; transition: background-color 0.2s; position: absolute; top: 50%; transform: translateY(-50%); }
+    .nav-arrow:hover { background-color: rgba(0, 0, 0, 0.6); }
+    .prev-arrow { left: 10px; border-radius: 0 5px 5px 0; }
+    .next-arrow { right: 10px; border-radius: 5px 0 0 5px; }
+    .nav-arrow:disabled { color: #555; background-color: rgba(0,0,0,0.1); cursor: not-allowed; }
+
+    /* --- Browser General Styles --- */
+    .breadcrumbs { margin-bottom: 20px; color: #aaa; font-size: .9em; word-break: break-all; }
+    .breadcrumbs a { color: #00bcd4; text-decoration: none; } .breadcrumbs a:hover { text-shadow: 1px 1px 2px pink; }
+    .breadcrumbs span:not(:last-child)::after, .breadcrumbs a:not(:last-child)::after { content: ' / '; margin: 0 5px; color: #777; }
+    h1.browser-title { border-bottom: 1px solid #444; padding-bottom: 10px; color: #f0f0f0; margin-bottom: 20px; word-break: break-all; font-size: 1.8em; }
+
+    /* --- Action Bar --- */
+    .action-bar { display: flex; flex-wrap: wrap; gap: 10px 15px; margin-bottom: 25px; padding: 15px; background-color: rgba(42, 42, 42, 0.8); border-radius: 5px; border: 1px solid #383838; align-items: center; }
+    .action-bar form { margin: 0; display: inline-flex; gap: 8px; align-items: center; flex-basis: auto; }
+    .action-bar input[type="file"] { display: none; }
+    .action-bar label.file-upload-label { padding: 8px 15px; background-color: #ffc107; color: #333; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.9em; white-space: nowrap; transition: background-color 0.3s; border: none; }
+    .action-bar label.file-upload-label:hover { background-color: #e0a800; }
+    .action-bar input[type="text"] { padding: 8px 10px; border: 1px solid #555; background-color: #444; color: #eee; border-radius: 4px; font-size: 0.9em; min-width: 150px; }
+    .action-button, .action-link { display: inline-block; padding: 8px 15px; background-color: #009688; color: #fff; border-radius: 5px; font-weight: bold; text-decoration: none; transition: background-color .3s; border: none; cursor: pointer; font-size: 0.9em; white-space: nowrap; }
+    .action-button:hover, .action-link:hover { background-color: #00796b; }
+    .action-button.create-folder { background-color: #0dcaf0; color: #000; } .action-button.create-folder:hover { background-color: #0baccc; }
+    /* Playlist download styled like other action links/buttons */
+    .action-button.download-playlist { background-color: #0dcaf0; color: #000; } .action-button.download-playlist:hover { background-color: #138496; }
+
+    /* --- File Listing (Default List View) --- */
+    .file-list { list-style: none; padding: 0; margin: 0; }
+    .file-item { margin-bottom: 10px; background-color: rgba(42, 42, 42, 0.7); padding: 10px 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #383838; transition: background-color .2s; flex-wrap: wrap; gap: 10px; }
+    .file-item:hover { background-color: #333; }
+    .item-info { flex-grow: 1; display: flex; align-items: center; gap: 10px; min-width: 200px; overflow: hidden; }
+    .item-icon { font-size: 1.3em; min-width: 25px; text-align: center; flex-shrink: 0; }
+    .item-name { color: #e0e0e0; text-decoration: none; flex-grow: 1; margin-right: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item-name.folder-link { color: #00bcd4; font-weight: bold; } .item-name.folder-link:hover { text-shadow: 1px 1px 2px pink; }
+    .item-name.problematic { color: #ffcc00; font-style: italic; } .item-name.problematic::after { content: ' ⚠️'; margin-left: 5px; display: inline-block; }
+    .item-size { font-size: 0.85em; color: #aaa; white-space: nowrap; margin-left: auto; padding-left: 10px; flex-shrink: 0;}
+    .item-actions { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex-shrink: 0; }
+    .item-action-button { font-weight: normal; padding: 4px 8px; border-radius: 3px; background-color: #007bff; color: #fff; transition: background-color .2s; white-space: nowrap; border: none; cursor: pointer; font-size: 0.85em; line-height: 1.2; text-decoration: none; }
+    .item-action-button:hover { background-color: #0056b3; }
+    .item-action-button.view { background-color: #6f42c1; } .item-action-button.view:hover { background-color: #5a32a3; }
+    .item-action-button.download { background-color: #6c757d; } .item-action-button.download:hover { background-color: #5a6268; }
+    .item-action-button.play { background-color: #28a745; } .item-action-button.play:hover { background-color: #218838; }
+    .item-action-button.delete { background-color: #dc3545; } .item-action-button.delete:hover { background-color: #c82333; } /* Delete button style */
+    .item-action-button:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+
+    /* --- Improved Image Grid Layout --- */
+    .image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 20px; /* Slightly more gap */
+}
+.image-grid .file-item {
+    /* ... keep existing styles: flex-direction, height, padding etc ... */
+    flex-direction: column; height: auto; align-items: stretch; /* Keep vertical */
+    text-align: center; padding: 8px; background-color: #2f2f2f;
+    border: 1px solid #444; border-radius: 4px;
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; overflow: hidden;
+}
+.image-grid .file-item:hover { /* ... keep hover styles ... */
+    transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); border-color: #555;
+}
+/* Thumbnail Link/Container */
+.image-grid .item-thumbnail-link {
+     display: block; width: 100%; height: 130px; background-color: #1e1e1e;
+     border-radius: 3px; margin-bottom: 8px; order: 1; overflow: hidden;
+     position: relative; cursor: pointer; /* Add cursor pointer */
+}
+.image-grid .item-thumbnail { /* ... keep existing styles ... */
+    display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;
+}
+.image-grid .file-item:hover .item-thumbnail { transform: scale(1.08); }
+
+/* --- Grid Item Info (Centering Fix) --- */
+.image-grid .item-info {
+    /* Removed flex-grow, align-items etc. as they are not needed for centering text */
+    order: 2; /* Info below image */
+    padding: 0 5px; /* Keep side padding */
+    margin-bottom: 8px; /* Space below name/size before actions */
+    /* Text alignment is handled by text-align: center on .file-item */
+}
+.image-grid .item-icon { display: none; }
+.image-grid .item-name { /* ... keep existing styles for wrapping etc ... */
+    white-space: normal; margin: 0; font-size: 0.85em; line-height: 1.3; color: #ddd;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; text-overflow: ellipsis; min-height: 2.6em;
+}
+.image-grid .item-size { /* ... keep existing styles ... */
+    margin: 4px auto 0 auto; padding-left: 0; font-size: 0.75em; color: #999;
+}
+
+/* --- Grid Item Actions (Centering Fix) --- */
+.image-grid .item-actions {
+    /* justify-content: center; --- Already centered by text-align on parent --- */
+    order: 3; /* Actions last */
+    margin-top: auto; /* Push actions to bottom if container stretches */
+    padding-top: 8px; /* Space above actions */
+    /* gap and flex-wrap are fine */
+    gap: 5px; flex-wrap: wrap;
+    /* Ensure it takes full width to allow centering of inline-block buttons */
+    width: 100%;
+    display: flex; /* Use flex again just for centering the buttons */
+    justify-content: center;
+}
+.image-grid .item-action-button { /* ... keep existing styles ... */
+     padding: 3px 7px; font-size: 0.8em;
+ }
+    /* .image-grid .item-action-button.view { display: none; } */
+
+    /* --- Misc --- */
+    .empty-folder { color: #aaa; text-align: center; padding: 30px; font-style: italic; font-size: 1.1em; }
+    .up-link-container { margin-top: 25px; text-align: left; }
+    .up-link { color:#ccc; padding:8px 12px; background-color:#3a3a3a; border-radius:4px; transition:background-color .2s; text-decoration:none; font-weight:bold; }
+    .up-link:hover { background-color:#4a4a4a; color:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumbs"> {# Breadcrumb Navigation #}
+    {% for crumb in breadcrumbs %}
+        {% if crumb.url %}<a href="{{ crumb.url }}">{{ crumb.name }}</a>
+        {% else %}<span>{{ crumb.name }}</span>{% endif %}
+    {% endfor %}
+</div>
+
+<h1 class="browser-title">Contents: {{ current_folder_name }}</h1> {# Page Title #}
+
+<div class="action-bar"> {# Action Bar #}
+    {# Upload Form #}
+    <form action="{{ url_for('upload_file_handler', subpath=current_path) }}" method="post" enctype="multipart/form-data" title="Upload file(s) to this folder">
+        <label for="file-upload" class="file-upload-label">📤 Upload Files</label>
+        <input id="file-upload" type="file" name="file" required multiple onchange="this.form.submit();" style="display: none;">
+    </form>
+    {# Create Folder Form #}
+    <form action="{{ url_for('create_folder_handler', subpath=current_path) }}" method="post" title="Create a new folder here">
+        <input type="text" name="foldername" placeholder="New folder name..." required pattern="[^\./\\]+" title="Folder name cannot contain ., /, or \">
+        <button type="submit" class="action-button create-folder">➕ Create Folder</button>
+    </form>
+    {# Download Playlist Link - Styled like others #}
+    {% if download_playlist_link %}
+    <a href="{{ download_playlist_link }}" class="action-link download-playlist action-bar-button" download title="Download M3U playlist for media in this folder">💾 Download Playlist</a>
+    {% endif %}
+</div>
+
+{% if not items %} {# Handle Empty Folder #}
+    <p class="empty-folder">This folder is empty.</p>
+{% else %} {# Display File List or Image Grid #}
+    <ul class="file-list {% if is_image_only_folder %}image-grid{% endif %}">
+        {% for item in items %}
+        {# --- Add data-id and data-name for JS image viewer --- #}
+        <li class="file-item item-type-{{ item.type }}"
+            {% if item.type == 'image' %} data-id="{{ item.id }}" data-name="{{ item.display_name | escape }}" {% endif %}>
+
+            {# Image thumbnail (Grid View Only) - Wrapped in Link #}
+            {% if is_image_only_folder and item.type == 'image' %}
+            <a href="{{ url_for('view_image_file', parent_path_in_url=current_path, item_id=item.id) }}"
+           onclick="viewImageModal('{{ item.id }}'); return false;" {# Call JS, prevent default link navigation #}
+           title="View {{ item.display_name }} in modal" {# Updated title #}
+           class="item-thumbnail-link"> {# Keep class #}
+             <img src="{{ url_for('view_image_file', parent_path_in_url=current_path, item_id=item.id) }}"
+                 alt="{{ item.display_name }}" class="item-thumbnail" loading="lazy">
+        </a>
+            {% endif %}
+
+            {# Item Info (Icon, Name, Size) #}
+            <div class="item-info">
+                 <span class="item-icon" title="{{ item.type|capitalize }}"> {# Icon #}
+                    {% if item.type == 'folder' %}📁{% elif item.type == 'video' %}🎬{% elif item.type == 'audio' %}🎵{% elif item.type == 'image' %}🖼️{% elif item.type == 'text' %}📄{% else %}📎{% endif %}
+                 </span>
+                 {% if item.type == 'folder' %} {# Name/Link #}
+                     <a href="{{ url_for('browse', subpath=item.path) }}" class="item-name folder-link {% if item.is_problematic %}problematic{% endif %}" title="Open folder: {{ item.display_name }}">{{ item.display_name }}</a>
+                 {% else %}
+                     <span class="item-name {% if item.is_problematic %}problematic{% endif %}" title="{{ item.display_name }}">{{ item.display_name }}</span>
+                 {% endif %}
+                 {% if item.type != 'folder' %} {# Size #}
+                    <span class="item-size">
+                        {% if item.size == 0 %}0 B{% elif item.size < 1024 %} {{ item.size }} B{% elif item.size < 1024*1024 %} {{ "%.1f KB" | format(item.size/1024) }}{% elif item.size < 1024*1024*1024 %} {{ "%.1f MB" | format(item.size/(1024*1024)) }}{% else %} {{ "%.1f GB" | format(item.size/(1024*1024*1024)) }}{% endif %}
+                    </span>
+                 {% endif %}
+            </div>
+
+            {# Item Actions (Buttons) #}
+            <div class="item-actions">
+                {% if item.type == 'video' %}
+                    <a href="{{ url_for('play_video_page', parent_path_in_url=current_path, item_id=item.id) }}" class="item-action-button play" title="Play video">Play</a>
+                {% elif item.type == 'audio' %}
+                    <a href="{{ url_for('play_audio_page', parent_path_in_url=current_path, item_id=item.id) }}" class="item-action-button play" title="Play audio">Play</a>
+                {% elif item.type == 'text' %}
+                    <button class="item-action-button view" onclick="viewTextFile('{{ url_for('view_text_content', parent_path_in_url=current_path, item_id=item.id) }}')" title="View text content">View</button>
+                {% elif item.type == 'image' and not is_image_only_folder %}
+                     <button class="item-action-button view" onclick="viewImageModal('{{ item.id }}')" title="View image in modal">View</button> {# Changed to button #}
+                {% endif %}
+                {# Download Button (Files ONLY) #}
+                {% if item.type != 'folder' %}
+                 <a href="{{ url_for('download_file', parent_path_in_url=current_path, item_id=item.id) }}" class="item-action-button download" title="Download this file">Download</a>
+                {% endif %}
+                {# Delete Button (Files and Folders) #}
+                <form method="POST" action="{{ url_for('delete_item', parent_path_in_url=current_path, item_id=item.id) }}" style="display: inline;" onsubmit="return confirmDeleteItem('{{ item.display_name | escape }}', '{{ item.type }}');">
+                     <button type="submit" class="item-action-button delete" title="Delete {{ item.type }}">🗑️ Delete</button>
+                 </form>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+{# 'Up' Link #}
+{% if up_link_url %}
+<div class="up-link-container">
+    <a href="{{ up_link_url }}" class="up-link">⬆️ Up to Parent Folder</a>
+</div>
+{% endif %}
+
+{# Modal Structure for Text Viewer #}
+<div id="textViewerModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+        <h2 id="modalTitle" class="modal-title">Text File</h2>
+        <button type="button" class="close-button" onclick="closeModal()" title="Close">×</button> {# Ensure function name matches JS #}
+    </div>
+    <div class="modal-body"><pre id="textContent">Loading...</pre></div>
+  </div>
+</div>
+
+{# --- NEW Modal Structure for Image Viewer --- #}
+<div id="imageViewerModal" class="modal image-modal">
+  <div class="modal-content image-modal-content">
+    <button type="button" class="close-button image-close-button" onclick="closeImageModal()" title="Close (Esc)">×</button>
+    <div class="modal-header"><h2 id="imageModalTitle" class="modal-title">Image Viewer</h2></div>
+    <div class="modal-body image-modal-body">
+         <button type="button" class="nav-arrow prev-arrow" id="imagePrevBtn" title="Previous Image (Left Arrow)" onclick="showPrevImage()">❮</button>
+         <div class="image-container">
+             <img id="modalImage" src="" alt="Image Preview" />
+             <div id="imageLoadingIndicator" style="display: none; color: #ccc; padding: 20px;">Loading...</div>
+         </div>
+         <button type="button" class="nav-arrow next-arrow" id="imageNextBtn" title="Next Image (Right Arrow)" onclick="showNextImage()">❯</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %} {# Link JS file and add inline JS for modals #}
+<script src="{{ url_for('static', filename='browse.js') }}"></script> {# Assumes text viewer JS is here #}
+<script>
+    // --- Delete Confirmation ---
+    function confirmDeleteItem(itemName, itemType) {
+        const escapedName = itemName.replace(/</g, "<").replace(/>/g, ">");
+        let message = `Are you sure you want to permanently delete this ${itemType}: "${escapedName}"?`;
+        if (itemType === 'folder') { message += '\n\nWARNING: Deleting a folder will also delete ALL its contents!'; }
+        return confirm(message);
+    }
+
+    // --- Text Viewer Modal (Assume functions are in browse.js or defined here) ---
+    // Example: If viewTextFile and closeModal are defined here:
+    // const textViewerModal = document.getElementById("textViewerModal");
+    // function viewTextFile(url) { /* ... text loading logic ... */ }
+    // function closeModal() { /* ... logic to close text modal ... */ }
+    // ... text modal listeners ...
+
+    // --- Image Viewer Modal ---
+    (function() { // IIFE to scope image viewer variables
+        'use strict';
+        const imageModal = document.getElementById("imageViewerModal");
+        const modalImage = document.getElementById("modalImage");
+        const imageModalTitle = document.getElementById("imageModalTitle");
+        const imagePrevBtn = document.getElementById("imagePrevBtn");
+        const imageNextBtn = document.getElementById("imageNextBtn");
+        const imageLoadingIndicator = document.getElementById("imageLoadingIndicator");
+
+        if (!imageModal || !modalImage || !imagePrevBtn || !imageNextBtn) {
+             console.warn("Image modal elements not all found. Viewer may not work.");
+             // Make the view buttons do nothing if modal isn't set up
+             window.viewImageModal = function() { console.error("Image modal not initialized."); };
+             return;
+        }
+
+        let currentImageIndex = -1;
+        let imageItemIds = [];
+        let currentImagePath = "{{ current_path }}"; // Get path from Jinja
+
+        function updateImageNavButtons() {
+            if (!imagePrevBtn || !imageNextBtn) return;
+            imagePrevBtn.disabled = (currentImageIndex <= 0);
+            imageNextBtn.disabled = (currentImageIndex >= imageItemIds.length - 1);
+        }
+
+        function loadImageIntoModal(index) {
+            if (index < 0 || index >= imageItemIds.length) return;
+            currentImageIndex = index;
+            updateImageNavButtons();
+
+            const itemData = imageItemIds[currentImageIndex];
+            const itemId = itemData.id;
+            const itemName = itemData.name || `Image ${index + 1}`;
+
+            // Build URL - ** Ensure 'view_image_file' endpoint exists and works **
+            const urlBaseRoot = "{{ url_for('view_image_file', item_id='__ITEMID__') }}".replace('__ITEMID__', itemId);
+            const urlBaseSub = "{{ url_for('view_image_file', parent_path_in_url='__PARENT__', item_id='__ITEMID__') }}";
+            let imageUrl;
+            try {
+                if (currentImagePath) {
+                    const encodedParent = currentImagePath.split('/').map(encodeURIComponent).join('/');
+                    imageUrl = urlBaseSub.replace('__PARENT__', encodedParent).replace('__ITEMID__', itemId);
+                } else {
+                    imageUrl = urlBaseRoot; // Already has item ID replaced
+                }
+            } catch (e) { console.error("Error building image URL", e); imageUrl = ""; }
+
+
+            console.log(`Loading image: index=${index}, id=${itemId}, url=${imageUrl}`);
+            if (imageLoadingIndicator) imageLoadingIndicator.style.display = 'block';
+            modalImage.style.opacity = '0'; // Hide while loading
+            modalImage.removeAttribute('src'); // Clear previous src
+
+            const img = new Image();
+            img.onload = () => {
+                modalImage.src = imageUrl;
+                modalImage.alt = itemName;
+                if (imageModalTitle) imageModalTitle.textContent = itemName;
+                if (imageLoadingIndicator) imageLoadingIndicator.style.display = 'none';
+                setTimeout(() => { modalImage.style.opacity = '1'; }, 30); // Fade in
+            };
+            img.onerror = () => {
+                console.error("Failed to load image:", imageUrl);
+                if (imageLoadingIndicator) {
+                     imageLoadingIndicator.textContent = 'Error loading image.';
+                     imageLoadingIndicator.style.display = 'block'; // Ensure visible
+                 }
+                modalImage.alt = "Error loading image";
+                if (imageModalTitle) imageModalTitle.textContent = "Error";
+            };
+            img.src = imageUrl; // Start loading
+        }
+
+        window.showPrevImage = function() { // Make globally accessible
+            if (currentImageIndex > 0) { loadImageIntoModal(currentImageIndex - 1); }
+        }
+        window.showNextImage = function() { // Make globally accessible
+            if (currentImageIndex < imageItemIds.length - 1) { loadImageIntoModal(currentImageIndex + 1); }
+        }
+
+        // This function is called by the 'View' button click
+        window.viewImageModal = function(itemId) {
+             imageItemIds = []; // Reset list
+             const listItems = document.querySelectorAll('li.file-item[data-id]'); // Get items with data-id
+             listItems.forEach(li => {
+                // Only add if it's an image type
+                if (li.classList.contains('item-type-image')) {
+                    imageItemIds.push({ id: li.dataset.id, name: li.dataset.name });
+                }
+             });
+
+             if (imageItemIds.length === 0) { console.warn("No image items with data-id found."); return; }
+
+             currentImageIndex = imageItemIds.findIndex(item => item.id === itemId);
+             if (currentImageIndex === -1) { console.error("Clicked item ID not found in image list."); return; }
+
+             console.log("Opening image modal for index:", currentImageIndex, "ID:", itemId);
+             imageModal.style.display = "flex";
+             loadImageIntoModal(currentImageIndex);
+             document.addEventListener('keydown', handleImageModalKeydown); // Add keyboard listener
+        }
+
+        window.closeImageModal = function() { // Make globally accessible
+            imageModal.style.display = "none";
+            modalImage.src = "";
+            if (imageModalTitle) imageModalTitle.textContent = "";
+            document.removeEventListener('keydown', handleImageModalKeydown); // Remove listener
+            currentImageIndex = -1; imageItemIds = [];
+        }
+
+        function handleImageModalKeydown(event) {
+            if (!imageModal || imageModal.style.display !== "flex") return;
+            switch (event.key) {
+                case 'ArrowLeft': showPrevImage(); break;
+                case 'ArrowRight': showNextImage(); break;
+                case 'Escape': closeImageModal(); break;
+            }
+        }
+
+        // Listener for background click (optional)
+        imageModal.addEventListener('click', function(event) { if (event.target === imageModal) closeImageModal(); });
+
+    })(); // End Image Viewer IIFE
+
+</script>
+{% endblock %}

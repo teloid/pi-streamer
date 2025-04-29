@@ -1,0 +1,109 @@
+{% extends "_base.html" %}
+{% block title %}Playing Audio: {{ display_filename }} - Pi Streamer{% endblock %}
+
+{% block head_extra %}
+<style>
+    html, body { height: 100%; margin: 0; padding: 0; } /* Ensure full height */
+    body {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 20px; box-sizing: border-box; min-height: 100vh;
+    }
+    main.content-area { /* Ensure main fills space and centers */
+        width: 100%; display: flex; justify-content: center; align-items: center;
+        flex-grow: 1; padding: 20px 0; /* Add padding if needed */
+    }
+    .audio-player-container {
+        width: 95%; max-width: 600px; background-color: #2a2a2a; padding: 30px;
+        border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,.3); text-align: center;
+        margin-left: auto; margin-right: auto; /* Explicit centering */
+    }
+    h2.audio-title {
+        color: #f0f0f0; margin-top: 0; margin-bottom: 25px; font-size: 1.4em; word-break: break-word;
+    }
+    h2.problematic { color: #ffcc00; font-style: italic; }
+    h2.problematic::after { content: ' ⚠️'; display: inline-block; }
+    audio {
+        width: 100%; margin-bottom: 25px; border-radius: 5px; outline: none; accent-color: #00bcd4;
+    }
+    audio::-webkit-media-controls-panel { background-color: rgba(60, 60, 60, 0.8); border-radius: 4px; }
+    audio::-webkit-media-controls-play-button, audio::-webkit-media-controls-mute-button,
+    audio::-webkit-media-controls-current-time-display, audio::-webkit-media-controls-time-remaining-display { color: #eee; }
+    .controls { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 15px; }
+    a.button-link, button.nav-button {
+        text-decoration: none; color: #fff; padding: 10px 20px; border-radius: 5px;
+        background-color: #007bff; transition: background-color .2s; font-size: 1em;
+        white-space: nowrap; border: none; font-family: inherit; cursor: pointer;
+    }
+    a.button-link:hover, button.nav-button:hover { background-color: #0056b3; }
+    button.nav-button:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+    a.back-link { background-color: #6c757d; } a.back-link:hover { background-color: #5a6268; }
+    .audio-error-message { color: #d9534f; margin-top: 15px; font-weight: bold; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="audio-player-container">
+    <h2 class="audio-title">
+        🎵 {{ display_filename }}
+    </h2>
+    <audio id="audioElement" controls autoplay preload="metadata"> {# Added id #}
+        <source src="{{ stream_url }}" type="{{ mime_type }}">
+        Your browser does not support the audio element.
+    </audio>
+    {# Error message placeholder #}
+    <div id="audioErrorMessage" class="audio-error-message" style="display: none;"></div>
+    <div class="controls">
+        {% if prev_link_url %}<a href="{{ prev_link_url }}" class="button-link nav-button">⏮️ Prev</a>
+        {% else %}<button class="nav-button" disabled>⏮️ Prev</button>{% endif %}
+        {% if next_link_url %}<a href="{{ next_link_url }}" class="button-link nav-button next-link">Next ⏭️</a> {# Added class #}
+        {% else %}<button class="nav-button" disabled>Next ⏭️</button>{% endif %}
+        <a href="{{ back_link_url }}" class="button-link back-link">Back to List</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    (function() {
+        'use strict';
+        const audio = document.getElementById('audioElement');
+        const nextLink = document.querySelector('.controls a.next-link'); // Use specific class
+        const errorDiv = document.getElementById('audioErrorMessage');
+
+        if (audio) {
+            // Auto-advance
+            if (nextLink && nextLink.href) {
+                audio.addEventListener('ended', () => {
+                    console.log('Audio ended, navigating to next track:', nextLink.href);
+                    window.location.href = nextLink.href;
+                });
+            } else {
+                 audio.addEventListener('ended', () => { console.log('Audio ended, no next track link found.'); });
+            }
+
+            // Error handling
+            audio.addEventListener('error', (e) => {
+                console.error('HTML5 Audio playback error:', e);
+                let message = 'Error loading or playing audio.';
+                if (audio.error) {
+                    switch (audio.error.code) {
+                        case audio.error.MEDIA_ERR_ABORTED: message = 'Playback aborted by user.'; break;
+                        case audio.error.MEDIA_ERR_NETWORK: message = 'Network error occurred.'; break;
+                        case audio.error.MEDIA_ERR_DECODE: message = 'Audio decoding error.'; break;
+                        case audio.error.MEDIA_ERR_SRC_NOT_SUPPORTED: message = 'Audio format not supported.'; break;
+                        default: message = 'An unknown audio error occurred.'; break;
+                    }
+                }
+                console.error("Audio Error Details:", audio.error);
+                if (errorDiv) { errorDiv.textContent = message; errorDiv.style.display = 'block'; }
+            });
+            // Clear error on successful play
+            audio.addEventListener('playing', () => { if (errorDiv) { errorDiv.style.display = 'none'; } });
+            audio.addEventListener('loadstart', () => { if (errorDiv) { errorDiv.style.display = 'none'; } }); // Clear on new load attempt
+
+        } else {
+             console.error("Audio element not found.");
+        }
+    })();
+</script>
+{% endblock %}

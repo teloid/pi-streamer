@@ -1,0 +1,337 @@
+{% extends "_base.html" %} {# Inherits the base layout #}
+
+{% block title %}Playing All Media in: {{ current_folder_name }} - Pi Streamer{% endblock %} {# Dynamic title #}
+
+{% block head_extra %} {# Link Video.js CSS and add specific styles #}
+<link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+<style>
+    /* --- Layout --- */
+    body {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 20px; min-height: 95vh;
+    }
+    /* --- Info Bar (Status Display) --- */
+    .info-bar {
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 15px; width: 95%; max-width: 960px;
+        margin-bottom: 15px;
+    }
+    #status { /* Style for the status text */
+        color: #f0f0f0; margin: 0; font-size: 1.3em; text-align: left;
+        word-break: break-all; flex-grow: 1; min-height: 1.5em; /* Prevent layout jumps */
+    }
+    /* --- Player Container --- */
+    .media-player-container {
+        width: 95%; max-width: 960px; margin-bottom: 15px;
+        background-color: #000; /* Black background */
+        min-height: 60px; /* Ensure space even for audio player */
+        transition: height 0.3s ease-in-out, aspect-ratio 0.3s ease-in-out; /* Smooth transition */
+    }
+
+    /* --- Video.js Player Styling (Always use VJS) --- */
+    .video-js { /* Base style for video */
+        width: 100%; height: auto;
+        aspect-ratio: 16 / 9; /* Default video aspect ratio */
+        display: block;
+    }
+    /* Style adjustments when VJS is playing audio */
+    .video-js.vjs-playing-audio {
+        aspect-ratio: auto !important; /* Override default aspect ratio */
+        height: 60px !important;       /* Set fixed, smaller height */
+    }
+    /* Hide the big play button when playing audio */
+    .video-js.vjs-playing-audio .vjs-big-play-button {
+        display: none !important;
+    }
+    .vjs-control-bar { background-color: rgba(43, 51, 63, .85); } /* Slightly less transparent */
+
+    /* --- Bottom Controls (Prev, Next, Back) --- */
+    .controls {
+        margin-top: 15px; display: flex; align-items: center; gap: 15px;
+        flex-wrap: wrap; width: 95%; max-width: 960px; justify-content: center;
+    }
+    button.nav-button, a.button-link { /* Shared button style */
+        padding: 10px 18px; background-color: #009688; color: #fff; border: none;
+        border-radius: 5px; cursor: pointer; text-decoration: none; font-size: 1em;
+        transition: background-color .3s; font-weight: bold; white-space: nowrap;
+    }
+    button.nav-button:hover, a.button-link:hover { background-color: #00796b; }
+    button.nav-button:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+    a.back-link { background-color: #6c757d; } /* Grey */
+    a.back-link:hover { background-color: #5a6268; }
+</style>
+{% endblock %}
+
+{% block content %} {# Main content for the play-all page #}
+<div class="info-bar">
+    {# Status message updated by JavaScript #}
+    <div id="status">Loading playlist...</div>
+</div>
+
+{# Container for the Video.js player - ONLY ONE PLAYER ELEMENT #}
+<div class="media-player-container" id="playerContainer">
+    <video id="vjsPlayer" class="video-js vjs-big-play-centered" controls preload="auto" playsinline>
+        <p class="vjs-no-js">Please enable JavaScript to play media.</p>
+    </video>
+</div>
+
+{# Navigation controls #}
+<div class="controls">
+    <button id="prevBtn" class="nav-button" disabled title="Previous item">⏮️ Previous</button>
+    <button id="nextBtn" class="nav-button" disabled title="Next item">Next ⏭️</button>
+    <a href="{{ back_link_url }}" class="button-link back-link" title="Back to file list">Back to List</a>
+</div>
+{% endblock %}
+
+
+{% block scripts_extra %} {# Load Video.js and add playlist logic #}
+<script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+<script>
+    (function() { // IIFE for scope protection
+        'use strict';
+
+        // --- Data from Flask ---
+        const mediaItems = {{ media_items_json | tojson }};
+        const parentPath = {{ parent_path_json | tojson }};
+        console.log("PlayAll - Media Items:", mediaItems);
+        console.log("PlayAll - Parent Path:", parentPath);
+
+        // --- DOM Elements ---
+        const statusElement = document.getElementById('status');
+        const nextBtn = document.getElementById('nextBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const playerElement = document.getElementById('vjsPlayer'); // The <video> element
+
+        // --- Check Elements ---
+        if (!statusElement || !nextBtn || !prevBtn || !playerElement) {
+            console.error("PlayAll Error: Crucial UI elements missing.");
+            if(statusElement) statusElement.textContent = "Error: Player UI failed.";
+            return;
+        }
+
+        // --- State ---
+        let currentIndex = -1;
+        let vjsPlayer = null; // Video.js player instance
+
+        // --- Helper Functions ---
+        function getMimeType(filename, itemType) {
+            const ext = filename ? filename.split('.').pop().toLowerCase() : '';
+            const mimeMap = { /* ... keep your existing mimeMap ... */
+                 'mp4': 'video/mp4', 'mkv': 'video/x-matroska', 'webm': 'video/webm', 'mov': 'video/quicktime', 'avi': 'video/x-msvideo', 'ogv': 'video/ogg',
+                 'mp3': 'audio/mpeg', 'ogg': 'audio/ogg', 'wav': 'audio/wav', 'flac': 'audio/flac', 'm4a': 'audio/mp4', 'aac': 'audio/aac', 'opus': 'audio/opus'
+            };
+            return mimeMap[ext] || (itemType === 'video' ? 'video/mp4' : (itemType === 'audio' ? 'audio/mpeg' : 'application/octet-stream'));
+        }
+
+        function updateStatusDisplay() { /* ... keep your existing updateStatusDisplay ... */
+             const len = mediaItems.length;
+             let txt = 'Playlist empty.';
+             if (currentIndex >= 0 && currentIndex < len) {
+                 const currentItem = mediaItems[currentIndex];
+                 txt = `Playing ${currentIndex + 1}/${len} (${currentItem.type}): ${currentItem.display_name || '[No Name]'}`;
+             } else if (len > 0 && currentIndex >= len) {
+                 txt = "Playlist finished.";
+             }
+             statusElement.textContent = txt;
+             prevBtn.disabled = (currentIndex <= 0);
+             nextBtn.disabled = (currentIndex >= len - 1);
+        }
+
+        function setupPlayerAppearance(itemType) {
+            if (!playerElement) return;
+            if (itemType === 'audio') {
+                // Add class to trigger CSS rules for audio appearance
+                playerElement.classList.add('vjs-playing-audio');
+                console.log("Set player appearance for AUDIO");
+            } else {
+                // Remove class for video appearance
+                playerElement.classList.remove('vjs-playing-audio');
+                console.log("Set player appearance for VIDEO");
+            }
+        }
+
+
+        // --- Initialize Player ---
+        function initializePlayer() {
+            if (vjsPlayer) return vjsPlayer; // Already initialized
+
+            try {
+                vjsPlayer = videojs('vjsPlayer', {
+                     controls: true,
+                     preload: 'auto',
+                     // Consider not autoplaying by default, rely on loadMedia
+                     // autoplay: true,
+                });
+                vjsPlayer.on('ended', playNext);
+                vjsPlayer.on('error', handleMediaError);
+                console.log("Video.js player initialized successfully.");
+                return vjsPlayer;
+            } catch (error) {
+                console.error("Failed to initialize Video.js player:", error);
+                statusElement.textContent = "Error: Video player failed to load.";
+                return null; // Return null if failed
+            }
+        }
+
+        // --- Load Media Logic ---
+        function loadMedia(index) {
+            console.log(`Attempting to load media at index: ${index}`);
+            const player = initializePlayer(); // Ensure player is initialized
+            if (!player) {
+                 console.error("Cannot load media, player not initialized.");
+                 return; // Stop if player isn't ready
+            }
+
+            // Stop current playback before changing source
+            try { player.pause(); player.reset(); } catch(e) { console.warn("Error pausing/resetting player:", e); }
+
+            if (!mediaItems || mediaItems.length === 0) { /* ... keep empty list check ... */ return; }
+
+            if (index >= 0 && index < mediaItems.length) {
+                currentIndex = index;
+                const item = mediaItems[currentIndex];
+                if (!item || !item.id || !item.type) { /* ... keep invalid item check ... */ return; }
+
+                const itemId = item.id;
+                const itemType = item.type;
+                const displayName = item.display_name || '[No Name]';
+
+                // Generate Stream URL (keep existing logic)
+                let streamUrl = '';
+                const itemId = item.id;
+                try {
+                    const streamUrlBaseRoot = "{{ url_for('stream_media_by_id', item_id='ITEMID_PLACEHOLDER') }}";
+                    // *** IMPORTANT: The placeholder needs to match the route variable name ***
+                    const streamUrlBaseSub = "{{ url_for('stream_media_by_id', parent_path='PARENT_PLACEHOLDER', item_id='ITEMID_PLACEHOLDER') }}";
+
+                    // Use the parentPath variable passed from Flask (should be clean relative path)
+                    const currentParentPath = parentPath; // Use the variable passed via Jinja
+
+                    if (currentParentPath) { // Check if parentPath is non-empty
+                         // Encode EACH component of the path separately for the URL
+                         const encodedParentPath = currentParentPath.split('/').map(encodeURIComponent).join('/');
+                         streamUrl = streamUrlBaseSub
+                             .replace('PARENT_PLACEHOLDER', encodedParentPath)
+                             .replace('ITEMID_PLACEHOLDER', itemId);
+                         console.log(`Generated stream URL with parent path '${currentParentPath}' (encoded: '${encodedParentPath}'): ${streamUrl}`);
+                    } else {
+                         streamUrl = streamUrlBaseRoot.replace('ITEMID_PLACEHOLDER', itemId);
+                         console.log(`Generated stream URL without parent path: ${streamUrl}`);
+                    }
+                } catch(e) {
+                    console.error("Error generating stream URL:", e);
+                    handleMediaError(e, "url_generation");
+                    return;
+                }
+
+                const mimeType = getMimeType(displayName, itemType);
+                console.log(`Loading ${itemType} index ${index}, ID ${itemId}, Name: ${displayName}, Type: ${mimeType}`);
+
+                // --- Update Player Appearance BEFORE setting source ---
+                setupPlayerAppearance(itemType);
+
+                updateStatusDisplay(); // Update status text
+
+                // --- Set source and attempt play ---
+                try {
+                    player.src({ type: mimeType, src: streamUrl });
+                    player.load();
+
+                    player.ready(() => { // Use ready or canplay
+                         console.log(`Player ready/canplay for ${itemId}. Attempting play.`);
+                         // Disable captions/subs
+                         try { /* ... keep caption disabling logic ... */
+                            const textTracks = player.textTracks();
+                            if (textTracks) {
+                                for(let i=0; i<textTracks.length; i++) {
+                                    if(textTracks[i].kind === 'subtitles' || textTracks[i].kind === 'captions') {
+                                        textTracks[i].mode = 'disabled';
+                                    }
+                                }
+                            }
+                         } catch (e) { console.warn("Could not disable text tracks", e);}
+
+                        // Attempt to play
+                        let playPromise = player.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(error => {
+                                console.warn(`Autoplay failed for ${itemId}:`, error);
+                                if (!statusElement.textContent.includes('Error')) {
+                                     statusElement.textContent += " (Playback requires interaction)";
+                                }
+                            });
+                        }
+                    });
+
+                } catch (e) {
+                    console.error("Error setting player source:", e);
+                    handleMediaError(e); // Treat as playback error
+                    return;
+                }
+
+            } else { // Index out of bounds
+                 console.log("Reached end or beginning of playlist.");
+                 try { player.reset(); } catch(e){} // Reset player
+                 setupPlayerAppearance('video'); // Reset appearance
+                 if (index >= mediaItems.length && mediaItems.length > 0) {
+                     currentIndex = mediaItems.length;
+                 } else if (index < 0) { currentIndex = -1; }
+                 updateStatusDisplay();
+            }
+        }
+
+        // --- Event Handlers ---
+        const playNext = () => { /* ... keep existing playNext logic ... */
+            console.log(`'ended' event. Current index: ${currentIndex}. Playing next.`);
+            if (currentIndex < mediaItems.length -1 ) {
+                loadMedia(currentIndex + 1);
+            } else {
+                 console.log("Last item finished playing.");
+                 if(vjsPlayer) vjsPlayer.reset();
+                 setupPlayerAppearance('video'); // Reset appearance
+                 currentIndex = mediaItems.length;
+                 updateStatusDisplay();
+            }
+        };
+
+        const handleMediaError = (e) => { /* ... keep existing handleMediaError logic ... */
+            const currentItem = (currentIndex >= 0 && currentIndex < mediaItems.length) ? mediaItems[currentIndex] : null;
+            const itemId = currentItem?.id || 'N/A';
+            const displayName = currentItem?.display_name || '[Unknown Item]';
+            const errorDetails = vjsPlayer ? vjsPlayer.error() : null;
+
+            console.error(`Error for index ${currentIndex} (ID: ${itemId}):`, errorDetails || e);
+            statusElement.textContent = `Error playing: ${displayName}. Skipping...`;
+
+            setTimeout(() => {
+                 if (currentIndex < mediaItems.length - 1) {
+                     loadMedia(currentIndex + 1);
+                 } else {
+                     console.log("Error on last item. Playlist finished.");
+                      if(vjsPlayer) vjsPlayer.reset();
+                      setupPlayerAppearance('video'); // Reset appearance
+                     currentIndex = mediaItems.length;
+                     updateStatusDisplay();
+                 }
+            }, 1500);
+        };
+
+        // --- Attach Button Listeners ---
+        nextBtn.addEventListener('click', () => loadMedia(currentIndex + 1));
+        prevBtn.addEventListener('click', () => loadMedia(currentIndex - 1));
+
+        // --- Initial Load ---
+        console.log("PlayAll: Starting initial load...");
+        if (mediaItems && mediaItems.length > 0) {
+            loadMedia(0); // Start playing the first item
+        } else {
+            console.log("PlayAll: Media items list is empty.");
+            statusElement.textContent = "No media items found in this playlist.";
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            initializePlayer(); // Initialize player even if list is empty, just in case
+        }
+
+    })(); // End IIFE
+</script>
+{% endblock %}

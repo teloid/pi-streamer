@@ -1,0 +1,175 @@
+/* static/style.css */
+
+/* --- Base HTML & Body Styles --- */
+html {
+    box-sizing: border-box; /* Better box model */
+}
+*, *:before, *:after {
+    box-sizing: inherit;
+}
+
+body {
+    background-color: #1e1e1e; /* Dark background */
+    color: #e0e0e0; /* Light grey text */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; /* System font stack */
+    margin: 0;
+    padding: 0;
+    display: flex; /* Use flexbox for sticky footer */
+    flex-direction: column;
+    min-height: 100vh; /* Ensure body takes at least full viewport height */
+    line-height: 1.6; /* Improve readability */
+}
+
+/* --- Layout Containers --- */
+.container {
+    max-width: 1100px; /* Max width for content */
+    margin: 0 auto; /* Center the container */
+    padding: 0 20px; /* Padding on sides */
+    width: 100%;
+}
+
+/* --- Header Styles --- */
+.site-header {
+    background-color: #333; /* Dark grey header */
+    padding: 12px 0; /* Vertical padding */
+    border-bottom: 2px solid #00bcd4; /* Teal accent border */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3); /* Subtle shadow */
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between; /* Logo left, nav right */
+    align-items: center;
+}
+
+.logo {
+    color: #00bcd4; /* Teal logo text */
+    font-size: 1.6em;
+    font-weight: bold;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.logo:hover {
+    color: #1dd8ef; /* Lighter teal on hover */
+}
+
+.site-header nav a {
+    color: #ccc; /* Light grey nav links */
+    text-decoration: none;
+    margin-left: 20px; /* Spacing between nav links */
+    transition: color 0.2s;
+    font-size: 1em;
+}
+
+.site-header nav a:hover {
+    color: #fff; /* White on hover */
+}
+
+/* --- Main Content Area --- */
+.content-area {
+    padding-top: 30px; /* Space below header */
+    padding-bottom: 40px; /* Space above footer */
+    flex-grow: 1; /* Makes main content take available vertical space */
+}
+
+/* --- Footer Styles --- */
+.site-footer {
+    background-color: #2a2a2a; /* Slightly lighter dark grey */
+    color: #aaa; /* Dimmed text */
+    padding: 15px 0;
+    margin-top: auto; /* Push footer to bottom with flexbox */
+    font-size: 0.9em;
+    text-align: center;
+    border-top: 1px solid #383838; /* Subtle top border */
+    flex-shrink: 0; /* Prevent footer from shrinking */
+}
+
+/* --- Flash Messages (Success, Error, etc.) --- */
+.flash-messages {
+    margin-bottom: 20px; /* Space below messages */
+    list-style: none; /* Remove default list styling if using ul */
+    padding: 0;
+}
+.flash {
+    padding: 12px 18px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    font-size: 0.95em;
+    border: 1px solid transparent;
+    line-height: 1.4;
+}
+/* Specific styles for different message categories */
+.flash.error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+.flash.warning { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+.flash.success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+.flash.info { background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; }
+
+/* --- General Element Styling --- */
+a {
+    color: #00bcd4; /* Default link color */
+    text-decoration: none;
+    transition: color 0.2s;
+}
+a:hover {
+    color: #1dd8ef; /* Lighter link color on hover */
+    text-shadow: 1px 1px 2px pink;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #f0f0f0; /* Slightly brighter heading color */
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
+    line-height: 1.3;
+}
+h1 { font-size: 2em; }
+h2 { font-size: 1.6em; }
+h3 { font-size: 1.3em; }
+
+button, input[type="submit"], input[type="button"], .button-link {
+    cursor: pointer; /* Ensure buttons look clickable */
+    font-family: inherit; /* Use body font for buttons */
+}
+
+/* Optional: Add focus styles for accessibility */
+a:focus, button:focus, input:focus, select:focus, textarea:focus {
+  outline: 2px solid #00bcd4;
+  outline-offset: 2px;
+}
+/* Remove default outline if custom style is added */
+*:focus {
+    /* outline: none; */ /* Uncomment if replacing with custom style */
+}
+
+
+/* --- Responsive Adjustments (Example) --- */
+@media (max-width: 768px) {
+    /* Reduce padding on smaller screens */
+    .container {
+        padding: 0 10px;
+    }
+    /* Stack header elements on small screens */
+    .header-content {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .site-header nav {
+        margin-top: 10px;
+        text-align: center; /* Center nav links */
+    }
+    .site-header nav a {
+        margin: 0 10px; /* Adjust spacing */
+    }
+    /* Adjust heading sizes */
+    h1 { font-size: 1.8em; }
+    h2 { font-size: 1.5em; }
+}
+
+@media (max-width: 480px) {
+    /* Further adjustments for very small screens */
+    .logo { font-size: 1.4em; }
+    .site-header nav a { font-size: 0.9em; }
+    /* Example: Make action bar items stack vertically */
+    /* .action-bar { flex-direction: column; align-items: stretch; } */
+    /* .action-bar form { justify-content: center; } */
+}

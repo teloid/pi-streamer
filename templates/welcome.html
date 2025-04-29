@@ -1,0 +1,69 @@
+{% extends "_base.html" %}
+{% block title %}Welcome - Pi Streamer{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* --- Ensure Full Height --- */
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    /* --- Body Centering (Welcome Page Specific) --- */
+    body {
+        display: flex; /* Use flexbox */
+        flex-direction: column; /* Stack items vertically */
+        justify-content: center; /* Center vertically */
+        align-items: center; /* Center horizontally */
+        background-color: #222;
+        overflow: hidden; /* Prevent scrollbars */
+        text-align: center; /* Center text elements like h1, p */
+    }
+    /* --- Override main container padding for this page --- */
+    main.container.content-area {
+        padding: 0; /* Remove default padding */
+        max-width: none; /* Allow full width if needed */
+        width: auto; /* Let content determine width */
+        flex-grow: 0; /* Don't let it grow unnecessarily */
+        /* Add display flex here if body alone isn't enough */
+        /* display: flex; */
+        /* flex-direction: column; */
+        /* align-items: center; */
+    }
+
+    /* --- Disk Container Styles --- */
+    .disk-container {
+        position: relative; /* Keep for ::before pseudo-element */
+        cursor: pointer;
+        margin-bottom: 30px; /* Space below disk */
+        /* Add margin: auto if needed, though flex on body should handle it */
+        /* margin-left: auto; */
+        /* margin-right: auto; */
+    }
+    #spinning-disk {
+        width: 200px; height: 200px; border: 20px solid #555;
+        border-top-color: #00bcd4; border-radius: 50%;
+        animation: spin 5s linear infinite; box-shadow: 0 0 30px rgba(0, 188, 212, .3);
+    }
+    #spinning-disk::before { /* Center hole */
+        content: ''; position: absolute; top: 50%; left: 50%; width: 30px; height: 30px;
+        background-color: #444; border-radius: 50%; transform: translate(-50%, -50%);
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, .5);
+    }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    /* --- Text Styling --- */
+    h1 { color: #00bcd4; margin-bottom: 20px; }
+    .welcome-text { color: #ccc; font-size: 1.2em; }
+
+    /* --- Hide Header/Footer --- */
+    .site-header, .site-footer { display: none; }
+</style>
+{% endblock %}
+
+{# The rest of the welcome.html content block remains the same #}
+{% block content %}
+    <div class="disk-container" onclick="window.location.href='{{ url_for('login') }}'">
+        <div id="spinning-disk"></div>
+    </div>
+{% endblock %}
