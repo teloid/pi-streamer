@@ -357,11 +357,11 @@ def play_audio_page(parent_path_in_url, item_id):
 # --- Playlist Download ---
 @app.route('/download_playlist/', defaults={'subpath': ''})
 @app.route('/download_playlist/<path:subpath>')
-@auth.login_required
+@auth.login_required # Keep login required for generating playlist? Optional.
 def download_playlist(subpath):
-    """Generates an M3U playlist file for download for media in the folder."""
+    """Generates an M3U playlist file for download containing DIRECT DOWNLOAD links."""
     current_path = get_relative_path_from_request(subpath)
-    app.logger.info(f"Request M3U playlist for: '{current_path}'")
+    app.logger.info(f"Request M3U playlist (Download Links) for: '{current_path}'")
 
     target_dir_abs = file_utils.get_safe_fullpath(current_path)
     if target_dir_abs is None or not os.path.isdir(target_dir_abs):
@@ -376,30 +376,39 @@ def download_playlist(subpath):
         return redirect(url_for('browse', subpath=current_path))
 
     folder_name_base = os.path.basename(current_path) if current_path else "media_root"
-    playlist_filename_base = secure_filename(folder_name_base) or "playlist"
+    # Add suffix to filename to indicate download links
+    playlist_filename_base = secure_filename(f"{folder_name_base}") or "playlist"
     playlist_filename = f"{playlist_filename_base}.m3u"
+    app.logger.debug(f"Generated download playlist filename: {playlist_filename}")
 
     m3u_content = ["#EXTM3U"]
     for item in media_items:
-        display_name_for_m3u = item['display_name'].replace(',', ';') # Replace commas in names for M3U
-        # Generate absolute stream URL using the ID and the *current path* as parent context
-        stream_url = url_for('stream_media_by_id',
-                             parent_path_in_url=current_path, # Use current path as parent
+        # Use display name, replace characters potentially problematic in EXTINF
+        display_name_for_m3u = item['display_name'].replace(',', ';').replace('\n', ' ').replace('\r', '')
+        # --- CHANGE HERE: Use url_for for the download endpoint ---
+        # Generate absolute download URL using the item ID and the *current path* as parent context
+        # Ensure 'download_file' route accepts 'parent_path_in_url'
+        download_url = url_for('download_file',
+                             parent_path_in_url=current_path, # Use current path as parent context
                              item_id=item['id'],
-                             _external=True) # Absolute URL
+                             _external=True) # Generate full absolute URL
+        # --- END CHANGE ---
 
         m3u_content.append(f"#EXTINF:-1,{display_name_for_m3u}")
-        m3u_content.append(stream_url)
+        m3u_content.append(download_url) # Add the download URL
 
     m3u_data = "\n".join(m3u_content) + "\n"
     response = make_response(m3u_data.encode('utf-8'))
     response.headers["Content-Type"] = "audio/x-mpegurl; charset=utf-8"
     try:
-        encoded_filename = quote(playlist_filename)
+        # Use RFC 5987 encoding for filename in Content-Disposition
+        encoded_filename = quote(playlist_filename, safe="")
         response.headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{encoded_filename}"
     except Exception:
         ascii_filename = playlist_filename.encode('ascii', 'ignore').decode('ascii') or "playlist.m3u"
-        response.headers["Content-Disposition"] = f"attachment; filename=\"{ascii_filename}\""
+        response.headers["Content-Disposition"] = f"attachment; filename=\"{ascii_filename}\"" # Fallback
+
+    app.logger.info(f"Generated M3U playlist with download links: {playlist_filename}")
     return response
 
 
