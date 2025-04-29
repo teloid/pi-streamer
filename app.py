@@ -22,6 +22,7 @@ from urllib.parse import quote, unquote, urljoin
 import config  # Import configuration
 import auth    # Import authentication logic
 import file_utils # Import file system utilities
+import sys
 
 # --- Flask App Initialization & Configuration ---
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -423,71 +424,70 @@ def upload_file_handler(subpath):
     target_dir_abs = file_utils.get_safe_fullpath(target_folder_path)
 
     if target_dir_abs is None or not os.path.isdir(target_dir_abs):
-        app.logger.error(f"Upload failed: Target directory invalid. Path='{target_folder_path}' Abs='{target_dir_abs}'")
+        # ... (error handling) ...
         return jsonify({"success": False, "error": f"Target directory '{target_folder_path or '/'}' not found or invalid."}), 400
 
-    if 'file' not in request.files:
+    if 'file' not in request.files: # ... (error handling) ...
         return jsonify({"success": False, "error": "No 'file' part in the request."}), 400
 
-    file = request.files['file']
-    if not file or not file.filename: # Check if filename is present and not empty
+    file = request.files['file'] # This is a FileStorage object
+    if not file or not file.filename: # ... (error handling) ...
         return jsonify({"success": False, "error": "No file selected or filename is empty."}), 400
 
-    # --- Filename Handling ---
+    # --- Filename Handling (Keep previous cleaning logic) ---
     original_filename = file.filename
-    app.logger.debug(f"Received original filename: '{original_filename}'")
-
-    # 1. Basic Cleaning (remove leading/trailing whitespace, replace problematic OS chars if needed)
-    #    This step is OS-dependent. For Linux, '/' is the main issue.
-    #    For cross-platform, might replace others like ':', '*', '?', '"', '<', '>', '|'
-    #    Let's focus on removing leading/trailing dots/spaces and replacing '/'
+    # ... (keep cleaning logic for final_filename) ...
     cleaned_filename = original_filename.strip('. ')
-    if os.path.sep != '/': # If not on Linux/Mac, replace OS separator too
-         cleaned_filename = cleaned_filename.replace(os.path.sep, '_')
-    # Replace forward slash just in case (shouldn't be in filename, but safety)
+    if os.path.sep != '/': cleaned_filename = cleaned_filename.replace(os.path.sep, '_')
     cleaned_filename = cleaned_filename.replace('/', '_')
-
-    # Prevent path traversal components explicitly
     if ".." in cleaned_filename:
-        app.logger.warning(f"Upload blocked: '..' detected in cleaned filename: '{cleaned_filename}'")
-        return jsonify({"success": False, "error": f"Filename '{original_filename}' contains invalid components ('..')."}), 400
-
-    # If after cleaning, filename is empty, reject it
+         return jsonify({"success": False, "error": f"Filename '{original_filename}' contains invalid components ('..')."}), 400
     if not cleaned_filename:
-         app.logger.warning(f"Upload blocked: Filename became empty after cleaning. Original='{original_filename}'")
          return jsonify({"success": False, "error": f"Filename '{original_filename}' is invalid."}), 400
-
-    # Use the cleaned filename
     final_filename = cleaned_filename
     app.logger.info(f"Using final filename for saving: '{final_filename}' (Original: '{original_filename}')")
     # --- End Filename Handling ---
 
+    destination_abs_str = os.path.join(target_dir_abs, final_filename) # Get destination as string
+    app.logger.debug(f"Calculated destination absolute path string: '{destination_abs_str}'")
 
-    destination_abs = os.path.join(target_dir_abs, final_filename)
-    app.logger.debug(f"Calculated destination absolute path: '{destination_abs}'")
-
-
-    # Check if file exists
-    if os.path.exists(destination_abs):
-        app.logger.warning(f"Upload skipped: File '{final_filename}' already exists in '{target_folder_path}'.")
+    # Check existence using the string path
+    if os.path.exists(destination_abs_str):
+        app.logger.warning(f"Upload skipped: File '{final_filename}' already exists.")
         return jsonify({"success": False, "error": f"File '{final_filename}' already exists."}), 409
 
-    # Attempt to save
+    # --- Attempt to save MANUALLY ---
     try:
-        # --- Save the file using the absolute path ---
-        # The OS should handle the encoding correctly if locale is UTF-8
-        file.save(destination_abs)
-        # ---
-        app.logger.info(f"File '{final_filename}' uploaded successfully to '{target_folder_path}'")
-        return jsonify({"success": True, "filename": final_filename}), 201
-    except Exception as e:
-        # Log the specific destination path that failed
-        app.logger.error(f"Failed to save uploaded file '{final_filename}' to ABSOLUTE path '{destination_abs}': {e}", exc_info=True)
-        # Check for common OS errors
-        error_msg = f"Server error saving '{final_filename}'. Check logs."
-        if isinstance(e, OSError):
-            error_msg = f"OS error saving '{final_filename}': {e.strerror}. Check permissions/filesystem."
+        # --- MODIFICATION START ---
+        # Manually open the destination file in binary write mode ('wb')
+        # Python's open() SHOULD handle the Unicode string path correctly on modern OS/filesystems
+        app.logger.debug(f"Attempting to open destination '{destination_abs_str}' in 'wb' mode.")
+        with open(destination_abs_str, "wb") as f_dst:
+            # Copy the content from the uploaded file's stream to the destination file
+            # file.stream provides the incoming data stream
+            shutil.copyfileobj(file.stream, f_dst)
+        # --- MODIFICATION END ---
 
+        app.logger.info(f"File '{final_filename}' uploaded successfully to '{target_folder_path}' via manual copy.")
+        return jsonify({"success": True, "filename": final_filename}), 201
+
+    except OSError as e:
+        # Catch OS errors during open() or writing
+        app.logger.error(f"OSError saving file '{final_filename}' to path '{destination_abs_str}': {e}", exc_info=True)
+        error_msg = f"OS error saving '{final_filename}': {e.strerror}. Check permissions/filesystem/encoding."
+        # Attempt to remove partially written file if creation failed midway (optional)
+        if os.path.exists(destination_abs_str):
+            try: os.remove(destination_abs_str)
+            except Exception: pass # Ignore errors during cleanup
+        return jsonify({"success": False, "error": error_msg}), 500
+    except Exception as e:
+        # Catch other unexpected errors
+        app.logger.error(f"Unexpected error saving file '{final_filename}' to path '{destination_abs_str}': {e}", exc_info=True)
+        error_msg = f"Server error saving '{final_filename}'. Check logs."
+        # Attempt cleanup
+        if os.path.exists(destination_abs_str):
+            try: os.remove(destination_abs_str)
+            except Exception: pass
         return jsonify({"success": False, "error": error_msg}), 500
 
 
