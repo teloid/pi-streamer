@@ -298,7 +298,7 @@ def play_video_page(parent_path_in_url, item_id):
     initial_stream_url = url_for('stream_media_by_id', parent_path_in_url=cleaned_parent_path, item_id=item_id)
 
     display_filename = os.path.basename(item_full_relative_path)
-    is_problematic_filename = any(c > '\x7f' for c in display_filename) # Basic non-ascii check for problematic flag
+    is_problematic_filename = None # Basic non-ascii check for problematic flag
 
     mime_type, _ = mimetypes.guess_type(target_file_abs)
     if not mime_type or mime_type == 'video/x-matroska': # Treat MKV as video/mp4 for broader compatibility if needed, or handle properly
@@ -413,47 +413,73 @@ def upload_file_handler(subpath):
     app.logger.debug(f"Upload Handler: Target Folder = '{target_folder_path}'")
     target_dir_abs = file_utils.get_safe_fullpath(target_folder_path)
 
-    # --- Basic Directory Validation ---
     if target_dir_abs is None or not os.path.isdir(target_dir_abs):
-        app.logger.error(f"Upload failed: Target directory invalid or not found. Path='{target_folder_path}' Abs='{target_dir_abs}'")
-        # Return JSON error for fetch request
-        return jsonify({"success": False, "error": f"Target directory '{target_folder_path or '/'}' not found or invalid."}), 400 # Bad Request
+        app.logger.error(f"Upload failed: Target directory invalid. Path='{target_folder_path}' Abs='{target_dir_abs}'")
+        return jsonify({"success": False, "error": f"Target directory '{target_folder_path or '/'}' not found or invalid."}), 400
 
-    # --- Process SINGLE file from the request (JS sends one at a time) ---
     if 'file' not in request.files:
         return jsonify({"success": False, "error": "No 'file' part in the request."}), 400
 
     file = request.files['file']
-
-    if not file or file.filename == '':
+    if not file or not file.filename: # Check if filename is present and not empty
         return jsonify({"success": False, "error": "No file selected or filename is empty."}), 400
 
-    original_filename = file.filename # Keep original for messages
-    filename = secure_filename(original_filename)
+    # --- Filename Handling ---
+    original_filename = file.filename
+    app.logger.debug(f"Received original filename: '{original_filename}'")
 
-    if not filename:
-        app.logger.warning(f"Upload skipped: Invalid filename after sanitizing. Original='{original_filename}'")
-        return jsonify({"success": False, "error": f"Filename '{original_filename}' is invalid or not allowed."}), 400
+    # 1. Basic Cleaning (remove leading/trailing whitespace, replace problematic OS chars if needed)
+    #    This step is OS-dependent. For Linux, '/' is the main issue.
+    #    For cross-platform, might replace others like ':', '*', '?', '"', '<', '>', '|'
+    #    Let's focus on removing leading/trailing dots/spaces and replacing '/'
+    cleaned_filename = original_filename.strip('. ')
+    if os.path.sep != '/': # If not on Linux/Mac, replace OS separator too
+         cleaned_filename = cleaned_filename.replace(os.path.sep, '_')
+    # Replace forward slash just in case (shouldn't be in filename, but safety)
+    cleaned_filename = cleaned_filename.replace('/', '_')
 
-    destination_abs = os.path.join(target_dir_abs, filename)
+    # Prevent path traversal components explicitly
+    if ".." in cleaned_filename:
+        app.logger.warning(f"Upload blocked: '..' detected in cleaned filename: '{cleaned_filename}'")
+        return jsonify({"success": False, "error": f"Filename '{original_filename}' contains invalid components ('..')."}), 400
 
-    # --- Check if file exists ---
+    # If after cleaning, filename is empty, reject it
+    if not cleaned_filename:
+         app.logger.warning(f"Upload blocked: Filename became empty after cleaning. Original='{original_filename}'")
+         return jsonify({"success": False, "error": f"Filename '{original_filename}' is invalid."}), 400
+
+    # Use the cleaned filename
+    final_filename = cleaned_filename
+    app.logger.info(f"Using final filename for saving: '{final_filename}' (Original: '{original_filename}')")
+    # --- End Filename Handling ---
+
+
+    destination_abs = os.path.join(target_dir_abs, final_filename)
+    app.logger.debug(f"Calculated destination absolute path: '{destination_abs}'")
+
+
+    # Check if file exists
     if os.path.exists(destination_abs):
-        app.logger.warning(f"Upload skipped: File '{filename}' already exists in '{target_folder_path}'.")
-        # Return specific error for existing file
-        return jsonify({"success": False, "error": f"File '{filename}' already exists."}), 409 # Conflict
+        app.logger.warning(f"Upload skipped: File '{final_filename}' already exists in '{target_folder_path}'.")
+        return jsonify({"success": False, "error": f"File '{final_filename}' already exists."}), 409
 
-    # --- Attempt to save ---
+    # Attempt to save
     try:
+        # --- Save the file using the absolute path ---
+        # The OS should handle the encoding correctly if locale is UTF-8
         file.save(destination_abs)
-        app.logger.info(f"File '{filename}' uploaded successfully to '{target_folder_path}'")
-        # Return success JSON
-        # We use flash messages later for the overall summary after page reload
-        return jsonify({"success": True, "filename": filename}), 201 # Created
+        # ---
+        app.logger.info(f"File '{final_filename}' uploaded successfully to '{target_folder_path}'")
+        return jsonify({"success": True, "filename": final_filename}), 201
     except Exception as e:
-        app.logger.error(f"Failed to save uploaded file '{filename}' to '{destination_abs}': {e}", exc_info=True)
-        # Return server error JSON
-        return jsonify({"success": False, "error": f"Server error saving '{filename}'. Check server logs."}), 500 # Internal Server Error
+        # Log the specific destination path that failed
+        app.logger.error(f"Failed to save uploaded file '{final_filename}' to ABSOLUTE path '{destination_abs}': {e}", exc_info=True)
+        # Check for common OS errors
+        error_msg = f"Server error saving '{final_filename}'. Check logs."
+        if isinstance(e, OSError):
+            error_msg = f"OS error saving '{final_filename}': {e.strerror}. Check permissions/filesystem."
+
+        return jsonify({"success": False, "error": error_msg}), 500
 
 
 @app.route('/create_folder/', defaults={'subpath': ''}, methods=['POST'])

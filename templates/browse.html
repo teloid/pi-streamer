@@ -114,12 +114,17 @@
 
 <div class="action-bar"> {# Action Bar #}
     {# Upload Form #}
-    <form id="uploadForm" action="{{ url_for('upload_file_handler', subpath=current_path) }}" method="post" enctype="multipart/form-data" title="Upload file(s) to this folder">
-        <label for="file-upload" class="file-upload-label action-bar-button">① Choose Files</label>
-        <input id="file-upload" type="file" name="file" required multiple> {# Removed onchange #}
-        {# Add an explicit submit button #}
-        <button type="submit" class="action-button action-bar-button" style="background-color: #28a745;">② Upload Selected</button> {# Green button #}
-    </form>
+    <form id="uploadForm"
+      action="{{ url_for('upload_file_handler', subpath=current_path) }}"
+      method="post"
+      enctype="multipart/form-data"
+      accept-charset="UTF-8" {# <--- ADD THIS ATTRIBUTE #}
+      title="Upload file(s) to this folder">
+    {# ... label and input ... #}
+    <label for="file-upload" class="file-upload-label action-bar-button">① Choose Files</label>
+    <input id="file-upload" type="file" name="file" required multiple>
+    <button type="submit" class="action-button action-bar-button" style="background-color: #28a745;">② Upload Selected</button>
+</form>
     {# Area to display upload progress #}
     <div id="uploadProgress" style="margin-top: 10px; width: 100%; background-color: #444; border-radius: 4px; padding: 5px 10px; display: none;">
         <span id="progressText"></span>
