@@ -98,5 +98,4 @@ def handle_login_request():
 # --- Logout Route Logic ---
 def handle_logout():
     session.pop('logged_in', None)
-    flash('You have been logged out.', 'info')
     return redirect(url_for('welcome')) # Redirect to welcome page after logout

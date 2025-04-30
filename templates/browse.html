@@ -61,8 +61,11 @@
             {# Image thumbnail (Grid View Only) - Triggering modal #}
             {% if is_image_only_folder and item.type == 'image' %}
             <a href="#" {# Href can be # or void(0) as JS handles click #}
-               onclick="viewImageModal('{{ item.id }}'); return false;" title="View {{ item.display_name }} in modal" class="item-thumbnail-link">
+               onclick="viewImageModal('{{ item.id }}'); return false;" title="View {{ item.display_name }}" class="item-thumbnail-link">
                  <img src="{{ url_for('view_image_file', parent_path_in_url=current_path, item_id=item.id) }}" alt="{{ item.display_name }}" class="item-thumbnail" loading="lazy">
+                 <div class="thumbnail-overlay">
+                    {{ item.display_name }}
+                </div>
             </a>
             {% endif %}
             {# Item Info #}
