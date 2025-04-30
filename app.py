@@ -367,49 +367,75 @@ def download_playlist(subpath):
 @app.route('/upload/<path:subpath>', methods=['POST'])
 @auth.login_required
 def upload_file_handler(subpath):
-    """Handles single file uploads via JS fetch, returns JSON."""
     target_folder_path = get_relative_path_from_request(subpath)
-    # ... (keep existing corrected logic using manual open/copyfileobj and returning JSON) ...
+    app.logger.debug(f"Upload Handler: Target Folder = '{target_folder_path}'")
     target_dir_abs = file_utils.get_safe_fullpath(target_folder_path)
-    if target_dir_abs is None or not os.path.isdir(target_dir_abs): return jsonify({"success": False, "error": f"Target directory '{target_folder_path or '/'}' not found."}), 400
-    if 'file' not in request.files: return jsonify({"success": False, "error": "No 'file' part."}), 400
-    file = request.files['file']; original_filename = file.filename
-    if not file or not original_filename: return jsonify({"success": False, "error": "No file or filename."}), 400
-    cleaned_filename = original_filename.strip('. ');
+
+    if target_dir_abs is None or not os.path.isdir(target_dir_abs):
+        # ... (error handling) ...
+        return jsonify({"success": False, "error": f"Target directory '{target_folder_path or '/'}' not found or invalid."}), 400
+
+    if 'file' not in request.files: # ... (error handling) ...
+        return jsonify({"success": False, "error": "No 'file' part in the request."}), 400
+
+    file = request.files['file'] # This is a FileStorage object
+    if not file or not file.filename: # ... (error handling) ...
+        return jsonify({"success": False, "error": "No file selected or filename is empty."}), 400
+
+    # --- Filename Handling (Keep previous cleaning logic) ---
+    original_filename = file.filename
+    # ... (keep cleaning logic for final_filename) ...
+    cleaned_filename = original_filename.strip('. ')
     if os.path.sep != '/': cleaned_filename = cleaned_filename.replace(os.path.sep, '_')
     cleaned_filename = cleaned_filename.replace('/', '_')
-    if ".." in cleaned_filename: return jsonify({"success": False, "error": f"Filename '{original_filename}' contains '..'."}), 400
-    if not cleaned_filename: return jsonify({"success": False, "error": f"Filename '{original_filename}' is invalid."}), 400
-    final_filename = cleaned_filename; destination_abs_str = os.path.join(target_dir_abs, final_filename)
-    if os.path.exists(destination_abs_str): return jsonify({"success": False, "error": f"File '{final_filename}' already exists."}), 409
+    if ".." in cleaned_filename:
+         return jsonify({"success": False, "error": f"Filename '{original_filename}' contains invalid components ('..')."}), 400
+    if not cleaned_filename:
+         return jsonify({"success": False, "error": f"Filename '{original_filename}' is invalid."}), 400
+    final_filename = cleaned_filename
+    app.logger.info(f"Using final filename for saving: '{final_filename}' (Original: '{original_filename}')")
+    # --- End Filename Handling ---
+
+    destination_abs_str = os.path.join(target_dir_abs, final_filename) # Get destination as string
+    app.logger.debug(f"Calculated destination absolute path string: '{destination_abs_str}'")
+
+    # Check existence using the string path
+    if os.path.exists(destination_abs_str):
+        app.logger.warning(f"Upload skipped: File '{final_filename}' already exists.")
+        return jsonify({"success": False, "error": f"File '{final_filename}' already exists."}), 409
+
+    # --- Attempt to save MANUALLY ---
     try:
+        # --- MODIFICATION START ---
+        # Manually open the destination file in binary write mode ('wb')
+        # Python's open() SHOULD handle the Unicode string path correctly on modern OS/filesystems
         app.logger.debug(f"Attempting to open destination '{destination_abs_str}' in 'wb' mode.")
-        with open(destination_abs_str, "wb") as f_dst: shutil.copyfileobj(file.stream, f_dst)
-        app.logger.info(f"File '{final_filename}' uploaded via manual copy.")
+        with open(destination_abs_str, "wb") as f_dst:
+            # Copy the content from the uploaded file's stream to the destination file
+            # file.stream provides the incoming data stream
+            shutil.copyfileobj(file.stream, f_dst)
+        # --- MODIFICATION END ---
+
+        app.logger.info(f"File '{final_filename}' uploaded successfully to '{target_folder_path}' via manual copy.")
         return jsonify({"success": True, "filename": final_filename}), 201
+
     except OSError as e:
-        logger.error(f"OSError saving file '{final_filename}' to path '{destination_abs_str}': {e}", exc_info=True)
+        # Catch OS errors during open() or writing
+        app.logger.error(f"OSError saving file '{final_filename}' to path '{destination_abs_str}': {e}", exc_info=True)
         error_msg = f"OS error saving '{final_filename}': {e.strerror}. Check permissions/filesystem/encoding."
         # Attempt to remove partially written file if creation failed midway (optional)
         if os.path.exists(destination_abs_str):
-            try:
-                os.remove(destination_abs_str)
-                logger.debug(f"Removed partially written file on OSError: {destination_abs_str}")
-            except Exception as cleanup_e:
-                logger.warning(f"Could not remove partially written file '{destination_abs_str}' after OSError: {cleanup_e}")
-        # Return the error response
+            try: os.remove(destination_abs_str)
+            except Exception: pass # Ignore errors during cleanup
         return jsonify({"success": False, "error": error_msg}), 500
-
     except Exception as e:
-        # ... (keep the general Exception block separate) ...
-        logger.error(f"Unexpected error saving file '{final_filename}' to path '{destination_abs_str}': {e}", exc_info=True)
+        # Catch other unexpected errors
+        app.logger.error(f"Unexpected error saving file '{final_filename}' to path '{destination_abs_str}': {e}", exc_info=True)
         error_msg = f"Server error saving '{final_filename}'. Check logs."
+        # Attempt cleanup
         if os.path.exists(destination_abs_str):
-            try:
-                os.remove(destination_abs_str)
-                logger.debug(f"Removed partially written file on Exception: {destination_abs_str}")
-            except Exception as cleanup_e:
-                 logger.warning(f"Could not remove partially written file '{destination_abs_str}' after Exception: {cleanup_e}")
+            try: os.remove(destination_abs_str)
+            except Exception: pass
         return jsonify({"success": False, "error": error_msg}), 500
 
 @app.route('/create_folder/', defaults={'subpath': ''}, methods=['POST'])
