@@ -1,180 +1,244 @@
 /* static/style.css */
 
 /* --- Base HTML & Body Styles --- */
-html {
-    box-sizing: border-box;
-    overflow-y: scroll; /* Force vertical scrollbar always */
-}
-
-*, *:before, *:after {
-    box-sizing: inherit;
-}
-
+html { box-sizing: border-box; overflow-y: scroll; /* Force scrollbar */ height: 100%; }
+*, *:before, *:after { box-sizing: inherit; }
 body {
-    /* ... keep existing body styles ... */
-    background-color: #1e1e1e;
-    color: #e0e0e0;
+    background-color: #1e1e1e; color: #e0e0e0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    line-height: 1.6;
+    margin: 0; padding: 0; display: flex; flex-direction: column;
+    min-height: 100vh; line-height: 1.6;
 }
 
 /* --- Layout Containers --- */
 .container {
-    max-width: 1100px; /* Adjust as desired */
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: 20px;
-    padding-right: 20px;
-    width: 100%;
-    box-sizing: border-box;
+    max-width: 1100px; margin-left: auto; margin-right: auto;
+    padding-left: 20px; padding-right: 20px; width: 100%;
 }
-
-.content-area {
-    padding-top: 30px;
-    padding-bottom: 40px;
-    flex-grow: 1; /* Allows main to fill vertical space */
-}
+.content-area { padding-top: 30px; padding-bottom: 40px; flex-grow: 1; }
 
 /* --- Header Styles --- */
-.site-header {
-    background-color: #333; /* Dark grey header */
-    padding: 12px 0; /* Vertical padding */
-    border-bottom: 2px solid #00bcd4; /* Teal accent border */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.3); /* Subtle shadow */
-    flex-shrink: 0; /* Prevent header from shrinking */
+.site-header { background-color: #333; padding: 12px 0; border-bottom: 2px solid #00bcd4; box-shadow: 0 2px 5px rgba(0,0,0,0.3); flex-shrink: 0; }
+.header-content { display: flex; justify-content: space-between; align-items: center; }
+.logo { color: #00bcd4; font-size: 1.6em; font-weight: bold; text-decoration: none; transition: color 0.2s; }
+.logo:hover { color: #1dd8ef; }
+.site-header nav a { color: #ccc; text-decoration: none; margin-left: 20px; transition: color 0.2s; font-size: 1em; }
+.site-header nav a:hover { color: #fff; }
+
+
+#shadowBox {
+    background-color: rgb(0, 0, 0);
+    /* Fallback color */
+    background-color: rgba(0, 0, 0, 0.2);
+    /* Black w/opacity/see-through */
+    border: 3px solid;
 }
 
-.header-content { /* Already uses flex, should be fine */
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.rainbow {
+    text-align: center;
+    text-decoration: underline;
+    font-size: 32px;
+    font-family: monospace;
+    letter-spacing: 5px;
+}
+.rainbow_text_animated {
+    background: linear-gradient(to right, #6666ff, #0099ff , #00ff00, #ff3399, #6666ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: rainbow_animation 6s ease-in-out infinite;
+    background-size: 400% 100%;
 }
 
-.logo {
-    color: #00bcd4; /* Teal logo text */
-    font-size: 1.6em;
-    font-weight: bold;
-    text-decoration: none;
-    transition: color 0.2s;
-}
-.logo:hover {
-    color: #1dd8ef; /* Lighter teal on hover */
-}
+@keyframes rainbow_animation {
+    0%,100% {
+        background-position: 0 0;
+    }
 
-.site-header nav a {
-    color: #ccc; /* Light grey nav links */
-    text-decoration: none;
-    margin-left: 20px; /* Spacing between nav links */
-    transition: color 0.2s;
-    font-size: 1em;
-}
-
-.site-header nav a:hover {
-    color: #fff; /* White on hover */
-}
-
-/* --- Main Content Area --- */
-.content-area {
-    padding-top: 30px; /* Space below header */
-    padding-bottom: 40px; /* Space above footer */
-    flex-grow: 1; /* Makes main content take available vertical space */
+    50% {
+        background-position: 100% 0;
+    }
 }
 
 /* --- Footer Styles --- */
-.site-footer .container { /* Footer content already inside container */
-    text-align: center; /* Center the <p> tag inside */
-}
+.site-footer { background-color: #2a2a2a; color: #aaa; padding: 15px 0; margin-top: auto; font-size: 0.9em; text-align: center; border-top: 1px solid #383838; flex-shrink: 0; }
 
-/* --- Flash Messages (Success, Error, etc.) --- */
-.flash-messages {
-    margin-bottom: 20px; /* Space below messages */
-    list-style: none; /* Remove default list styling if using ul */
-    padding: 0;
-}
-.flash {
-    padding: 12px 18px;
-    margin-bottom: 15px;
-    border-radius: 4px;
-    font-size: 0.95em;
-    border: 1px solid transparent;
-    line-height: 1.4;
-}
-/* Specific styles for different message categories */
+/* --- Flash Messages --- */
+.flash-messages { margin-bottom: 20px; list-style: none; padding: 0; }
+.flash { padding: 12px 18px; margin-bottom: 15px; border-radius: 4px; font-size: 0.95em; border: 1px solid transparent; line-height: 1.4; }
 .flash.error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
 .flash.warning { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
 .flash.success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
 .flash.info { background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; }
 
 /* --- General Element Styling --- */
-a {
-    color: #00bcd4; /* Default link color */
-    text-decoration: none;
-    transition: color 0.2s;
-}
-a:hover {
-    color: #1dd8ef; /* Lighter link color on hover */
-    text-shadow: 1px 1px 2px pink;
-}
+a { color: #00bcd4; text-decoration: none; transition: color 0.2s; }
+a:hover { color: #1dd8ef; text-decoration: underline; }
+h1, h2, h3, h4, h5, h6 { color: #f0f0f0; margin-top: 1.5em; margin-bottom: 0.8em; line-height: 1.3; }
+h1 { font-size: 2em; } h2 { font-size: 1.6em; } h3 { font-size: 1.3em; }
+button, input[type="submit"], input[type="button"], .button-link { cursor: pointer; font-family: inherit; }
+a:focus, button:focus, input:focus, select:focus, textarea:focus { outline: 2px solid #00bcd4; outline-offset: 2px; }
 
-h1, h2, h3, h4, h5, h6 {
-    color: #f0f0f0; /* Slightly brighter heading color */
-    margin-top: 1.5em;
-    margin-bottom: 0.8em;
-    line-height: 1.3;
-}
-h1 { font-size: 2em; }
-h2 { font-size: 1.6em; }
-h3 { font-size: 1.3em; }
+/* ======================================== */
+/* === Browse Page Specific Styles ====== */
+/* ======================================== */
 
-button, input[type="submit"], input[type="button"], .button-link {
-    cursor: pointer; /* Ensure buttons look clickable */
-    font-family: inherit; /* Use body font for buttons */
-}
+/* --- Modals (Common Base) --- */
+.modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); }
+.modal-content { background-color: #2d2d2d; margin: 5% auto; padding: 20px; border: 1px solid #555; width: 80%; max-width: 900px; color: #e0e0e0; border-radius: 5px; position: relative; max-height: 80vh; display: flex; flex-direction: column; }
+.modal-header { padding-bottom: 10px; border-bottom: 1px solid #444; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+.modal-title { margin: 0; font-size: 1.2em; color: #00bcd4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 20px; }
+.modal-body { overflow-y: auto; flex-grow: 1; }
+.close-button { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; background: none; border: none; padding: 0 5px; line-height: 1; }
+.close-button:hover, .close-button:focus { color: #fff; text-decoration: none; }
 
-/* Optional: Add focus styles for accessibility */
-a:focus, button:focus, input:focus, select:focus, textarea:focus {
-  outline: 2px solid #00bcd4;
-  outline-offset: 2px;
+/* Text Viewer Modal Specific */
+.modal-body pre { white-space: pre-wrap; word-wrap: break-word; background-color: #1e1e1e; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #ccc; }
+
+/* Image Viewer Modal Specific */
+.modal.image-modal { background-color: rgba(0, 0, 0, 0.9); }
+.image-modal-content { background-color: transparent; border: none; width: 90%; max-width: 90vw; height: 100%; padding: 0; box-shadow: none; margin: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
+.image-modal-content .modal-header { display: block; position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.7); color: #fff; padding: 8px 20px; border-radius: 5px; z-index: 1002; max-width: 80%; border: none; margin: 0; }
+.image-modal-content .modal-header .modal-title { margin: 0; font-size: 1em; color: #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.image-modal-body { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; overflow: hidden; }
+.image-container { flex-grow: 1; display: flex; justify-content: center; align-items: center; height: calc(100% - 40px); max-width: calc(100% - 100px); padding: 20px 0; box-sizing: border-box; }
+#modalImage { display: block; max-width: 100%; max-height: 100%; object-fit: contain; transition: opacity 0.3s ease-in-out; }
+#imageLoadingIndicator { display: none; color: #ccc; padding: 20px; font-size: 1.2em; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.image-close-button { position: absolute; top: 15px; right: 25px; font-size: 40px; color: #fff; background-color: rgba(0, 0, 0, 0.4); border: none; border-radius: 50%; width: 40px; height: 40px; line-height: 35px; text-align: center; cursor: pointer; z-index: 1003; transition: background-color 0.2s; }
+.image-close-button:hover { background-color: rgba(0, 0, 0, 0.7); }
+.nav-arrow { background-color: rgba(0, 0, 0, 0.3); color: white; border: none; font-size: 3em; cursor: pointer; padding: 15px 10px; z-index: 1001; transition: background-color 0.2s; position: absolute; top: 50%; transform: translateY(-50%); }
+.nav-arrow:hover { background-color: rgba(0, 0, 0, 0.6); }
+.prev-arrow { left: 10px; border-radius: 0 5px 5px 0; }
+.next-arrow { right: 10px; border-radius: 5px 0 0 5px; }
+.nav-arrow:disabled { color: #555; background-color: rgba(0,0,0,0.1); cursor: not-allowed; }
+
+/* --- Browse Page Structure --- */
+.breadcrumbs { margin-bottom: 20px; color: #aaa; font-size: .9em; word-break: break-all; }
+.breadcrumbs a { color: #00bcd4; text-decoration: none; } .breadcrumbs a:hover { text-decoration: underline; }
+.breadcrumbs span:not(:last-child)::after, .breadcrumbs a:not(:last-child)::after { content: ' / '; margin: 0 5px; color: #777; }
+h1.browser-title { border-bottom: 1px solid #444; padding-bottom: 10px; color: #f0f0f0; margin-bottom: 15px; word-break: break-all; font-size: 1.8em; }
+
+/* --- Sort Controls --- */
+.sort-controls { margin-bottom: 20px; font-size: 0.9em; color: #ccc; padding: 5px 0; border-bottom: 1px solid #383838; }
+.sort-controls span { font-weight: bold; margin-right: 5px;}
+.sort-controls a { margin-left: 10px; padding: 3px 6px; border-radius: 3px; color: #00bcd4; text-decoration: none; }
+.sort-controls a:hover { background-color: #444; color: #fff; text-decoration: none; }
+.sort-controls a.active-sort { font-weight: bold; color: white; background-color: #007bff; }
+
+/* --- Action Bar --- */
+.action-bar { display: flex; flex-wrap: wrap; gap: 10px 15px; margin-bottom: 25px; padding: 15px; background-color: rgba(42, 42, 42, 0.8); border-radius: 5px; border: 1px solid #383838; align-items: center; }
+.action-bar form { margin: 0; display: inline-flex; gap: 8px; align-items: center; flex-basis: auto; }
+.action-bar input[type="file"] { display: none; }
+.action-bar input[type="text"] { padding: 8px 10px; border: 1px solid #555; background-color: #444; color: #eee; border-radius: 4px; font-size: 0.9em; min-width: 150px; }
+/* Action Bar Common Button Style */
+.action-bar .action-bar-button { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 8px 15px; margin: 0; border: none; line-height: 1.4; height: 36px; border-radius: 5px; font-weight: bold; text-decoration: none !important; transition: background-color .3s, color .3s, box-shadow .3s; cursor: pointer; font-size: 0.9em; white-space: nowrap; vertical-align: middle; text-align: center; }
+/* Action Bar Specific Button Colors */
+.action-bar label.file-upload-label.action-bar-button { background-color: #ffc107; color: #333; }
+.action-bar label.file-upload-label.action-bar-button:hover { background-color: #e0a800; }
+.action-bar button.create-folder.action-bar-button { background-color: #0dcaf0; color: #000; }
+.action-bar button.create-folder.action-bar-button:hover { background-color: #0baccc; }
+.action-bar button.download-playlist.action-bar-button { background-color: #17a2b8; color: #fff; } /* Changed to button */
+.action-bar button.download-playlist.action-bar-button:hover { background-color: #138496; }
+.action-bar button[type="submit"].action-bar-button { background-color: #28a745; color: #fff; }
+.action-bar button[type="submit"].action-bar-button:hover { background-color: #218838; }
+.action-bar button[type="submit"].action-bar-button:disabled { background-color: #5a6268; color: #ccc; cursor: not-allowed; }
+/* Upload Progress Bar Styles */
+#uploadProgress { margin-top: 10px; width: 100%; background-color: #444; border-radius: 4px; padding: 5px 10px; display: none; }
+#progressText { display: block; margin-bottom: 3px; font-size: 0.9em; }
+#progressBar { width: 100%; height: 8px; appearance: none; border: none; border-radius: 4px; overflow: hidden; background-color: #666; }
+#progressBar::-webkit-progress-bar { background-color: #666; }
+#progressBar::-webkit-progress-value { background-color: #28a745; transition: width 0.1s linear; }
+#progressBar::-moz-progress-bar { background-color: #28a745; }
+#uploadDetails { font-size: 0.8em; list-style: none; padding: 0; margin-top: 5px; max-height: 100px; overflow-y: auto; color: #ccc; border-top: 1px solid #555; padding-top: 5px; }
+#uploadDetails li { margin-bottom: 2px; }
+
+/* --- File Listing (Default List View) --- */
+.file-list { list-style: none; padding: 0; margin: 0; }
+.file-item { margin-bottom: 10px; background-color: rgba(42, 42, 42, 0.7); padding: 10px 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #383838; transition: background-color .2s; flex-wrap: wrap; gap: 10px; }
+.file-item:hover { background-color: #333; }
+.item-info { flex-grow: 1; display: flex; align-items: center; gap: 10px; min-width: 200px; overflow: hidden; }
+.item-icon { font-size: 1.3em; min-width: 25px; text-align: center; flex-shrink: 0; }
+.item-name { color: #e0e0e0; text-decoration: none; flex-grow: 1; margin-right: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-name.folder-link { color: #00bcd4; font-weight: bold; } .item-name.folder-link:hover { text-decoration: underline; }
+.item-name.problematic { color: #ffcc00; font-style: italic; } .item-name.problematic::after { content: ' ⚠️'; margin-left: 5px; display: inline-block; }
+.item-size { font-size: 0.85em; color: #aaa; white-space: nowrap; margin-left: auto; padding-left: 10px; flex-shrink: 0;}
+/* Item Action Buttons (General) */
+.item-actions { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex-shrink: 0; }
+.item-actions button, /* Style buttons directly */
+.item-actions a.item-action-button { /* Keep class for potential links */
+    font-weight: normal; padding: 4px 8px; border-radius: 3px; background-color: #007bff; color: #fff;
+    transition: background-color .2s; white-space: nowrap; border: none; cursor: pointer;
+    font-size: 0.85em; line-height: 1.2; text-decoration: none; font-family: inherit;
 }
-/* Remove default outline if custom style is added */
-*:focus {
-    /* outline: none; */ /* Uncomment if replacing with custom style */
-}
+.item-actions button:hover,
+.item-actions a.item-action-button:hover { background-color: #0056b3; }
+/* Specific Item Action Button Colors */
+.item-actions .item-action-button.view { background-color: #6f42c1; } .item-actions .item-action-button.view:hover { background-color: #5a32a3; }
+.item-actions .item-action-button.download { background-color: #6c757d; } .item-actions .item-action-button.download:hover { background-color: #5a6268; }
+.item-actions .item-action-button.play { background-color: #28a745; } .item-actions .item-action-button.play:hover { background-color: #218838; }
+.item-actions .item-action-button.delete { background-color: #dc3545; } .item-actions .item-action-button.delete:hover { background-color: #c82333; }
+.item-actions button:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+
+/* --- Improved Image Grid Layout --- */
+.image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 20px; }
+.image-grid .file-item { flex-direction: column; height: auto; align-items: stretch; text-align: center; padding: 8px; background-color: #2f2f2f; border: 1px solid #444; border-radius: 4px; transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; overflow: hidden; }
+.image-grid .file-item:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); border-color: #555; }
+.image-grid .item-thumbnail-link { display: block; width: 100%; height: 130px; background-color: #1e1e1e; border-radius: 3px; margin-bottom: 8px; order: 1; overflow: hidden; position: relative; cursor: pointer; }
+.image-grid .item-thumbnail { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+.image-grid .file-item:hover .item-thumbnail { transform: scale(1.08); }
+.image-grid .item-info { order: 2; padding: 0 5px; margin-bottom: 8px; }
+.image-grid .item-icon { display: none; }
+.image-grid .item-name { white-space: normal; margin: 0; font-size: 0.85em; line-height: 1.3; color: #ddd; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; min-height: 2.6em; }
+.image-grid .item-size { margin: 4px auto 0 auto; padding-left: 0; font-size: 0.75em; color: #999; }
+.image-grid .item-actions { order: 3; margin-top: auto; padding-top: 8px; width: 100%; display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; }
+.image-grid .item-actions button { padding: 3px 7px; font-size: 0.8em; } /* Target buttons directly */
+.image-grid .item-actions .item-action-button.view { display: none; } /* Hide explicit view button */
+
+/* --- Pagination --- */
+.pagination-nav { margin-top: 30px; text-align: center; }
+.pagination { display: inline-block; padding-left: 0; list-style: none; border-radius: 4px; margin-bottom: 5px;}
+.page-item { display: inline; }
+.page-link { padding: 8px 12px; margin-left: -1px; border: 1px solid #444; color: #00bcd4; background-color: #333; transition: background-color .2s, color .2s; text-decoration: none; }
+.page-link:hover { background-color: #444; color: #fff; }
+.page-item.active .page-link { background-color: #00bcd4; color: black; font-weight: bold; border-color: #00bcd4; cursor: default; }
+.page-item.disabled .page-link { border: 1px solid #333; color: #666; cursor: not-allowed; background-color: #2a2a2a; }
+.page-item:first-child .page-link { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+.page-item:last-child .page-link { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+.pagination-info { font-size: 0.85em; color: #aaa; margin-top: 5px; }
+
+/* --- Misc --- */
+.empty-folder { color: #aaa; text-align: center; padding: 30px; font-style: italic; font-size: 1.1em; }
+.up-link-container { margin-top: 25px; text-align: left; }
+.up-link { color:#ccc; padding:8px 12px; background-color:#3a3a3a; border-radius:4px; transition:background-color .2s; text-decoration:none; font-weight:bold; }
+.up-link:hover { background-color:#4a4a4a; color:#fff; }
 
 
-/* --- Responsive Adjustments (Example) --- */
+/* --- Responsive Adjustments --- */
 @media (max-width: 768px) {
-    /* Reduce padding on smaller screens */
-    .container {
-        padding: 0 10px;
-    }
-    /* Stack header elements on small screens */
-    .header-content {
-        flex-direction: column;
-        gap: 10px;
-    }
-    .site-header nav {
-        margin-top: 10px;
-        text-align: center; /* Center nav links */
-    }
-    .site-header nav a {
-        margin: 0 10px; /* Adjust spacing */
-    }
-    /* Adjust heading sizes */
-    h1 { font-size: 1.8em; }
-    h2 { font-size: 1.5em; }
+    .container { padding: 0 10px; }
+    .header-content { flex-direction: column; gap: 10px; }
+    .site-header nav { margin-top: 10px; text-align: center; }
+    .site-header nav a { margin: 0 10px; }
+    .action-bar { padding: 10px; gap: 8px; }
+    .action-bar .action-bar-button { font-size: 0.85em; padding: 6px 12px; height: auto; } /* Adjust button size */
+    .action-bar input[type="text"] { min-width: 120px; }
+    .file-item { padding: 8px 10px; }
+    .item-actions { gap: 5px; }
+    .item-action-button, .item-actions button { font-size: 0.8em; padding: 3px 6px; }
+    h1.browser-title { font-size: 1.5em;}
+    .image-grid { gap: 10px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .image-grid .item-thumbnail-link { height: 110px; }
+    .page-link { padding: 6px 10px; }
 }
 
 @media (max-width: 480px) {
-    /* Further adjustments for very small screens */
     .logo { font-size: 1.4em; }
     .site-header nav a { font-size: 0.9em; }
-    /* Example: Make action bar items stack vertically */
-    /* .action-bar { flex-direction: column; align-items: stretch; } */
-    /* .action-bar form { justify-content: center; } */
+    .action-bar { flex-direction: column; align-items: stretch; } /* Stack actions vertically */
+    .action-bar form { justify-content: center; }
+    h1.browser-title { font-size: 1.3em;}
+    .image-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); } /* Smaller grid columns */
+    .image-grid .item-thumbnail-link { height: 90px; }
+    .page-link { font-size: 0.9em; padding: 5px 8px; }
+    .pagination-info { font-size: 0.8em;}
 }

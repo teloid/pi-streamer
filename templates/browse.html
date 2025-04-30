@@ -1,106 +1,7 @@
-{% extends "_base.html" %} {# Inherits the base layout #}
+{% extends "_base.html" %}
+{% block title %}Browse: {{ current_folder_name }} - Pi Streamer{% endblock %}
 
-{% block title %}Browse: {{ current_folder_name }} - Pi Streamer{% endblock %} {# Dynamic title #}
-
-{% block head_extra %} {# Styles specific to the browser page #}
-<style>
-    /* --- Modal (Text Viewer) Styles --- */
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); }
-    .modal-content { background-color: #2d2d2d; margin: 5% auto; padding: 20px; border: 1px solid #555; width: 80%; max-width: 900px; color: #e0e0e0; border-radius: 5px; position: relative; max-height: 80vh; display: flex; flex-direction: column; }
-    .modal-header { padding-bottom: 10px; border-bottom: 1px solid #444; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-    .modal-title { margin: 0; font-size: 1.2em; color: #00bcd4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 20px; }
-    .modal-body { overflow-y: auto; flex-grow: 1; }
-    .modal-body pre { white-space: pre-wrap; word-wrap: break-word; background-color: #1e1e1e; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #ccc; }
-    .close-button { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; background: none; border: none; padding: 0 5px; line-height: 1; }
-    .close-button:hover, .close-button:focus { color: #fff; text-decoration: none; }
-
-    /* --- Image Modal Styles --- */
-    .modal.image-modal { background-color: rgba(0, 0, 0, 0.9); }
-    .image-modal-content { background-color: transparent; border: none; width: 90%; max-width: 90vw; height: 100%; /* Use 100% height */ padding: 0; box-shadow: none; margin: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
-    /* Image Modal Header (Filename Display) */
-    .image-modal-content .modal-header {
-        display: block; /* Make visible */ position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
-        background-color: rgba(0, 0, 0, 0.7); color: #fff; padding: 8px 20px; border-radius: 5px;
-        z-index: 1002; max-width: 80%; border: none; margin: 0;
-    }
-    .image-modal-content .modal-header .modal-title { margin: 0; font-size: 1em; color: #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
-    /* Image Modal Body & Image Container */
-    .image-modal-body { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; overflow: hidden; }
-    .image-container { flex-grow: 1; display: flex; justify-content: center; align-items: center; height: calc(100% - 40px); /* Adjust height slightly for header/padding */ max-width: calc(100% - 100px); padding: 20px 0; box-sizing: border-box; }
-    #modalImage { display: block; max-width: 100%; max-height: 100%; object-fit: contain; transition: opacity 0.3s ease-in-out; }
-    #imageLoadingIndicator { display: none; color: #ccc; padding: 20px; font-size: 1.2em; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-    /* Image Modal Close Button */
-    .image-close-button { position: absolute; top: 15px; right: 25px; font-size: 40px; color: #fff; background-color: rgba(0, 0, 0, 0.4); border: none; border-radius: 50%; width: 40px; height: 40px; line-height: 35px; text-align: center; cursor: pointer; z-index: 1003; transition: background-color 0.2s; }
-    .image-close-button:hover { background-color: rgba(0, 0, 0, 0.7); }
-    /* Image Modal Navigation Arrows */
-    .nav-arrow { background-color: rgba(0, 0, 0, 0.3); color: white; border: none; font-size: 3em; cursor: pointer; padding: 15px 10px; z-index: 1001; transition: background-color 0.2s; position: absolute; top: 50%; transform: translateY(-50%); }
-    .nav-arrow:hover { background-color: rgba(0, 0, 0, 0.6); }
-    .prev-arrow { left: 10px; border-radius: 0 5px 5px 0; }
-    .next-arrow { right: 10px; border-radius: 5px 0 0 5px; }
-    .nav-arrow:disabled { color: #555; background-color: rgba(0,0,0,0.1); cursor: not-allowed; }
-
-    /* --- Browser General Styles --- */
-    .breadcrumbs { margin-bottom: 20px; color: #aaa; font-size: .9em; word-break: break-all; }
-    .breadcrumbs a { color: #00bcd4; text-decoration: none; } .breadcrumbs a:hover { text-shadow: #fc0 1px 0 10px;; }
-    .breadcrumbs span:not(:last-child)::after, .breadcrumbs a:not(:last-child)::after { content: ' / '; margin: 0 5px; color: #777; }
-    h1.browser-title { border-bottom: 1px solid #444; padding-bottom: 10px; color: #f0f0f0; margin-bottom: 20px; word-break: break-all; font-size: 1.8em; }
-
-    /* --- Action Bar --- */
-    .action-bar { display: flex; flex-wrap: wrap; gap: 10px 15px; margin-bottom: 25px; padding: 15px; background-color: rgba(42, 42, 42, 0.8); border-radius: 5px; border: 1px solid #383838; align-items: center; }
-    .action-bar form { margin: 0; display: inline-flex; gap: 8px; align-items: center; flex-basis: auto; }
-    .action-bar input[type="file"] { display: none; }
-    .action-bar input[type="text"] { padding: 8px 10px; border: 1px solid #555; background-color: #444; color: #eee; border-radius: 4px; font-size: 0.9em; min-width: 150px; }
-    /* Action Bar Common Button Style */
-    .action-bar .action-bar-button { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 8px 15px; margin: 0; border: none; line-height: 1.4; height: 36px; border-radius: 5px; font-weight: bold; text-decoration: none !important; transition: background-color .3s, color .3s, box-shadow .3s; cursor: pointer; font-size: 0.9em; white-space: nowrap; vertical-align: middle; text-align: center; }
-    /* Action Bar Specific Colors */
-    .action-bar label.file-upload-label.action-bar-button { background-color: #ffc107; color: #333; }
-    .action-bar label.file-upload-label.action-bar-button:hover { background-color: #e0a800; }
-    .action-bar button.create-folder.action-bar-button { background-color: #0dcaf0; color: #000; }
-    .action-bar button.create-folder.action-bar-button:hover { background-color: #0baccc; }
-    .action-bar a.download-playlist.action-bar-button { background-color: #17a2b8; color: #fff; }
-    .action-bar a.download-playlist.action-bar-button:hover { background-color: #138496; }
-
-    /* --- File Listing (Default List View) --- */
-    .file-list { list-style: none; padding: 0; margin: 0; }
-    .file-item { margin-bottom: 10px; background-color: rgba(42, 42, 42, 0.7); padding: 10px 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #383838; transition: background-color .2s; flex-wrap: wrap; gap: 10px; }
-    .file-item:hover { background-color: #333; }
-    .item-info { flex-grow: 1; display: flex; align-items: center; gap: 10px; min-width: 200px; overflow: hidden; }
-    .item-icon { font-size: 1.3em; min-width: 25px; text-align: center; flex-shrink: 0; }
-    .item-name { color: #e0e0e0; text-decoration: none; flex-grow: 1; margin-right: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .item-name.folder-link { color: #00bcd4; font-weight: bold; } .item-name.folder-link:hover { text-shadow: #fc0 1px 0 10px;; }
-    .item-name.problematic { color: #ffcc00; font-style: italic; } .item-name.problematic::after { content: ' ⚠️'; margin-left: 5px; display: inline-block; }
-    .item-size { font-size: 0.85em; color: #aaa; white-space: nowrap; margin-left: auto; padding-left: 10px; flex-shrink: 0;}
-    .item-actions { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex-shrink: 0; }
-    .item-action-button { font-weight: normal; padding: 4px 8px; border-radius: 3px; background-color: #007bff; color: #fff; transition: background-color .2s; white-space: nowrap; border: none; cursor: pointer; font-size: 0.85em; line-height: 1.2; text-decoration: none; }
-    .item-action-button:hover { background-color: #0056b3; }
-    .item-action-button.view { background-color: #6f42c1; } .item-action-button.view:hover { background-color: #5a32a3; }
-    .item-action-button.download { background-color: #6c757d; } .item-action-button.download:hover { background-color: #5a6268; }
-    .item-action-button.play { background-color: #28a745; } .item-action-button.play:hover { background-color: #218838; }
-    .item-action-button.delete { background-color: #dc3545; } .item-action-button.delete:hover { background-color: #c82333; }
-    .item-action-button:disabled { background-color: #555; color: #888; cursor: not-allowed; }
-
-    /* --- Improved Image Grid Layout --- */
-    .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 20px; }
-    .image-grid .file-item { flex-direction: column; height: auto; align-items: stretch; text-align: center; padding: 8px; background-color: #2f2f2f; border: 1px solid #444; border-radius: 4px; transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; overflow: hidden; }
-    .image-grid .file-item:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); border-color: #555; }
-    .image-grid .item-thumbnail-link { display: block; width: 100%; height: 130px; background-color: #1e1e1e; border-radius: 3px; margin-bottom: 8px; order: 1; overflow: hidden; position: relative; cursor: pointer; }
-    .image-grid .item-thumbnail { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
-    .image-grid .file-item:hover .item-thumbnail { transform: scale(1.08); }
-    .image-grid .item-info { order: 2; padding: 0 5px; margin-bottom: 8px; }
-    .image-grid .item-icon { display: none; }
-    .image-grid .item-name { white-space: normal; margin: 0; font-size: 0.85em; line-height: 1.3; color: #ddd; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; min-height: 2.6em; }
-    .image-grid .item-size { margin: 4px auto 0 auto; padding-left: 0; font-size: 0.75em; color: #999; }
-    .image-grid .item-actions { order: 3; margin-top: auto; padding-top: 8px; width: 100%; display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; }
-    .image-grid .item-action-button { padding: 3px 7px; font-size: 0.8em; }
-    /* .image-grid .item-action-button.view { display: none; } */ /* Keep view button hidden/optional */
-
-    /* --- Misc --- */
-    .empty-folder { color: #aaa; text-align: center; padding: 30px; font-style: italic; font-size: 1.1em; }
-    .up-link-container { margin-top: 25px; text-align: left; }
-    .up-link { color:#ccc; padding:8px 12px; background-color:#3a3a3a; border-radius:4px; transition:background-color .2s; text-decoration:none; font-weight:bold; }
-    .up-link:hover { background-color:#4a4a4a; color:#fff; }
-</style>
-{% endblock %}
+{# No head_extra needed as all styles are in style.css #}
 
 {% block content %}
 <div class="breadcrumbs"> {# Breadcrumb Navigation #}
@@ -112,34 +13,43 @@
 
 <h1 class="browser-title">Contents: {{ current_folder_name }}</h1> {# Page Title #}
 
+{# --- Sort Controls --- #}
+<div class="sort-controls">
+    <span>Sort by:</span>
+    {% set sort_options = [('name', 'Name'), ('type', 'Type'), ('size', 'Size'), ('date', 'Date')] %}
+    {% for key, label in sort_options %}
+        <a href="{{ url_for('browse', subpath=current_path, sort_by=key, sort_order='desc' if current_sort_by == key and current_sort_order == 'asc' else 'asc', page=1) }}"
+           class="{% if current_sort_by == key %}active-sort{% endif %}"
+           title="Sort by {{ label }} ({{ 'Descending' if current_sort_by == key and current_sort_order == 'asc' else 'Ascending' }})">
+            {{ label }}
+            {% if current_sort_by == key %}
+                {% if current_sort_order == 'asc' %}▲{% else %}▼{% endif %}
+            {% endif %}
+        </a>
+    {% endfor %}
+</div>
+{# --- End Sort Controls --- #}
+
+
 <div class="action-bar"> {# Action Bar #}
     {# Upload Form #}
-    <form id="uploadForm"
-      action="{{ url_for('upload_file_handler', subpath=current_path) }}"
-      method="post"
-      enctype="multipart/form-data"
-      accept-charset="UTF-8" {# <--- ADD THIS ATTRIBUTE #}
-      title="Upload file(s) to this folder">
-    {# ... label and input ... #}
-    <label for="file-upload" class="file-upload-label action-bar-button">① Choose Files</label>
-    <input id="file-upload" type="file" name="file" required multiple>
-    <button type="submit" class="action-button action-bar-button" style="background-color: #28a745;">② Upload Selected</button>
-</form>
-    {# Area to display upload progress #}
-    <div id="uploadProgress" style="margin-top: 10px; width: 100%; background-color: #444; border-radius: 4px; padding: 5px 10px; display: none;">
-        <span id="progressText"></span>
-        <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
-        <ul id="uploadDetails" style="font-size: 0.8em; list-style: none; padding: 0; max-height: 100px; overflow-y: auto;"></ul>
-    </div>
+    <form id="uploadForm" action="{{ url_for('upload_file_handler', subpath=current_path) }}" method="post" enctype="multipart/form-data" accept-charset="UTF-8" title="Upload file(s) to this folder">
+        <label for="file-upload" class="file-upload-label action-bar-button">① Choose Files</label>
+        <input id="file-upload" type="file" name="file" required multiple>
+        <button type="submit" class="action-button action-bar-button">② Upload Selected</button> {# Explicit Submit Button #}
+    </form>
     {# Create Folder Form #}
     <form action="{{ url_for('create_folder_handler', subpath=current_path) }}" method="post" title="Create a new folder here">
         <input type="text" name="foldername" placeholder="New folder name..." required pattern="[^\./\\]+" title="Folder name cannot contain ., /, or \">
-        <button type="submit" class="action-button create-folder action-bar-button">➕ Create Folder</button> {# Added common class #}
+        <button type="submit" class="action-button create-folder action-bar-button">➕ Create Folder</button>
     </form>
-    {# Download Playlist Link #}
+    {# Download Playlist Button #}
     {% if download_playlist_link %}
-        <a href="{{ download_playlist_link }}" class="action-link download-playlist action-bar-button" download title="Download M3U playlist for media in this folder">💾 Download Playlist</a> {# Added common class #}
+         {# Use data-url attribute for JS #}
+        <button type="button" class="download-playlist action-bar-button" data-url="{{ download_playlist_link }}" title="Download M3U playlist for media in this folder">💾 Download Playlist</button>
     {% endif %}
+    {# Upload Progress Area #}
+     <div id="uploadProgress"><span id="progressText"></span><progress id="progressBar" value="0" max="100"></progress><ul id="uploadDetails"></ul></div>
 </div>
 
 {% if not items %} {# Handle Empty Folder #}
@@ -147,54 +57,43 @@
 {% else %} {# Display File List or Image Grid #}
     <ul class="file-list {% if is_image_only_folder %}image-grid{% endif %}">
         {% for item in items %}
-        {# Add data attributes to <li> for JS image viewer #}
-        <li class="file-item item-type-{{ item.type }}"
-            {% if item.type == 'image' %} data-id="{{ item.id }}" data-name="{{ item.display_name | escape }}" {% endif %}>
-
-            {# Image thumbnail (Grid View Only) - Wrapped in Link triggering modal #}
+        <li class="file-item item-type-{{ item.type }}" {% if item.type == 'image' %} data-id="{{ item.id }}" data-name="{{ item.display_name | escape }}" {% endif %}>
+            {# Image thumbnail (Grid View Only) - Triggering modal #}
             {% if is_image_only_folder and item.type == 'image' %}
-            <a href="{{ url_for('view_image_file', parent_path_in_url=current_path, item_id=item.id) }}"
-               onclick="viewImageModal('{{ item.id }}'); return false;" {# Call JS, prevent default link #}
-               title="View {{ item.display_name }} in modal"
-               class="item-thumbnail-link">
-                 <img src="{{ url_for('view_image_file', parent_path_in_url=current_path, item_id=item.id) }}"
-                     alt="{{ item.display_name }}" class="item-thumbnail" loading="lazy">
+            <a href="#" {# Href can be # or void(0) as JS handles click #}
+               onclick="viewImageModal('{{ item.id }}'); return false;" title="View {{ item.display_name }} in modal" class="item-thumbnail-link">
+                 <img src="{{ url_for('view_image_file', parent_path_in_url=current_path, item_id=item.id) }}" alt="{{ item.display_name }}" class="item-thumbnail" loading="lazy">
             </a>
             {% endif %}
-
-            {# Item Info (Icon, Name, Size) #}
+            {# Item Info #}
             <div class="item-info">
-                 <span class="item-icon" title="{{ item.type|capitalize }}"> {# Icon #}
-                    {% if item.type == 'folder' %}📁{% elif item.type == 'video' %}🎬{% elif item.type == 'audio' %}🎵{% elif item.type == 'image' %}🖼️{% elif item.type == 'text' %}📄{% else %}📎{% endif %}
-                 </span>
-                 {% if item.type == 'folder' %} {# Name/Link #}
-                     <a href="{{ url_for('browse', subpath=item.path) }}" class="item-name folder-link {% if item.is_problematic %}problematic{% endif %}" title="Open folder: {{ item.display_name }}">{{ item.display_name }}</a>
-                 {% else %}
-                     <span class="item-name {% if item.is_problematic %}problematic{% endif %}" title="{{ item.display_name }}">{{ item.display_name }}</span>
-                 {% endif %}
-                 {% if item.type != 'folder' %} {# Size #}
-                    <span class="item-size">
-                        {% if item.size == 0 %}0 B{% elif item.size < 1024 %} {{ item.size }} B{% elif item.size < 1024*1024 %} {{ "%.1f KB" | format(item.size/1024) }}{% elif item.size < 1024*1024*1024 %} {{ "%.1f MB" | format(item.size/(1024*1024)) }}{% else %} {{ "%.1f GB" | format(item.size/(1024*1024*1024)) }}{% endif %}
-                    </span>
-                 {% endif %}
+                 <span class="item-icon" title="{{ item.type|capitalize }}">{% if item.type == 'folder' %}📁{% elif item.type == 'video' %}🎬{% elif item.type == 'audio' %}🎵{% elif item.type == 'image' %}🖼️{% elif item.type == 'text' %}📄{% else %}📎{% endif %}</span>
+                 {% if item.type == 'folder' %}<a href="{{ url_for('browse', subpath=item.path, sort_by=current_sort_by, sort_order=current_sort_order) }}" class="item-name folder-link {% if item.is_problematic %}problematic{% endif %}">{{ item.display_name }}</a>
+                 {% else %}<span class="item-name {% if item.is_problematic %}problematic{% endif %}" title="{{ item.display_name }}">{{ item.display_name }}</span>{% endif %}
+                 {% if item.type != 'folder' %}<span class="item-size">{% if item.size == 0 %}0 B{% elif item.size < 1024 %} {{ item.size }} B{% elif item.size < 1024*1024 %} {{ "%.1f KB" | format(item.size/1024) }}{% elif item.size < 1024*1024*1024 %} {{ "%.1f MB" | format(item.size/(1024*1024)) }}{% else %} {{ "%.1f GB" | format(item.size/(1024*1024*1024)) }}{% endif %}</span>{% endif %}
             </div>
-
-            {# Item Actions (Buttons) #}
+            {# Item Actions #}
             <div class="item-actions">
+                {# Use type="button" and data attributes for JS navigation #}
                 {% if item.type == 'video' %}
-                    <a href="{{ url_for('play_video_page', parent_path_in_url=current_path, item_id=item.id) }}" class="item-action-button play" title="Play video">Play</a>
+                    <button type="button" class="item-action-button play" data-url="{{ url_for('play_video_page', parent_path_in_url=current_path, item_id=item.id) }}" title="Play video">Play</button>
                 {% elif item.type == 'audio' %}
-                    <a href="{{ url_for('play_audio_page', parent_path_in_url=current_path, item_id=item.id) }}" class="item-action-button play" title="Play audio">Play</a>
+                    <button type="button" class="item-action-button play" data-url="{{ url_for('play_audio_page', parent_path_in_url=current_path, item_id=item.id) }}" title="Play audio">Play</button>
                 {% elif item.type == 'text' %}
-                    <button class="item-action-button view" onclick="viewTextFile('{{ url_for('view_text_content', parent_path_in_url=current_path, item_id=item.id) }}')" title="View text content">View</button>
+                <a href="#" {# href="#" prevents default jump, JS handles action #}
+                       onclick="viewTextFile('{{ url_for('view_text_content', parent_path_in_url=current_path, item_id=item.id) }}'); return false;" {# Call JS, return false #}
+                       class="item-action-button view" {# Apply button styling classes #}
+                       title="View text content">View</a>
                 {% elif item.type == 'image' and not is_image_only_folder %}
-                     <button class="item-action-button view" onclick="viewImageModal('{{ item.id }}')" title="View image in modal">View</button> {# Trigger modal #}
-                {% endif %}
+                     <button type="button" class="item-action-button view" data-itemid="{{ item.id }}" title="View image in modal">View</button>
+                 {% elif item.type == 'image' and is_image_only_folder %}
+                     {# No explicit View button needed here as thumbnail is clickable #}
+                 {% endif %}
                 {# Download Button (Files ONLY) #}
                 {% if item.type != 'folder' %}
-                 <a href="{{ url_for('download_file', parent_path_in_url=current_path, item_id=item.id) }}" class="item-action-button download" title="Download this file">Download</a>
+                 <button type="button" class="item-action-button download" data-url="{{ url_for('download_file', parent_path_in_url=current_path, item_id=item.id) }}" title="Download this file">Download</button>
                 {% endif %}
-                {# Delete Button (Files and Folders) #}
+                {# Delete Button (Form remains) #}
                 <form method="POST" action="{{ url_for('delete_item', parent_path_in_url=current_path, item_id=item.id) }}" style="display: inline;" onsubmit="return confirmDeleteItem('{{ item.display_name | escape }}', '{{ item.type }}');">
                      <button type="submit" class="item-action-button delete" title="Delete {{ item.type }}">🗑️ Delete</button>
                  </form>
@@ -202,298 +101,249 @@
         </li>
         {% endfor %}
     </ul>
-{% endif %}
+
+    {# --- Pagination Controls --- #}
+    {% if is_image_only_folder and pagination.total_pages > 1 %}
+    <nav class="pagination-nav" aria-label="Image grid navigation">
+        <ul class="pagination">
+            {# Previous Page Link #}
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                {% if pagination.has_prev %}<a class="page-link" href="{{ url_for('browse', subpath=current_path, sort_by=current_sort_by, sort_order=current_sort_order, page=pagination.current_page - 1) }}" aria-label="Previous">« <span class="d-none d-md-inline">Prev</span></a>
+                {% else %}<span class="page-link disabled">« <span class="d-none d-md-inline">Prev</span></span>{% endif %}
+            </li>
+            {# Page Number Links #}
+            {% set page_range = 2 %} {# Number of links around current page #}
+            {% for page_num in range(1, pagination.total_pages + 1) %}
+                {# Logic to show first, last, and pages around current #}
+                {% if page_num == 1 or page_num == pagination.total_pages or (page_num >= pagination.current_page - page_range and page_num <= pagination.current_page + page_range) %}
+                    {# Add ellipsis if there's a gap #}
+                    {% if loop.previtem is defined and page_num > loop.previtem + 1 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+                     <li class="page-item {% if page_num == pagination.current_page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('browse', subpath=current_path, sort_by=current_sort_by, sort_order=current_sort_order, page=page_num) }}">{{ page_num }}</a></li>
+                 {% elif loop.index == 2 and pagination.current_page > page_range + 1 %} {# Ellipsis near beginning #}
+                      <li class="page-item disabled"><span class="page-link">…</span></li>
+                 {% elif loop.index == pagination.total_pages -1 and pagination.current_page < pagination.total_pages - page_range %} {# Ellipsis near end #}
+                      <li class="page-item disabled"><span class="page-link">…</span></li>
+                 {% endif %}
+            {% endfor %}
+            {# Next Page Link #}
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                {% if pagination.has_next %}<a class="page-link" href="{{ url_for('browse', subpath=current_path, sort_by=current_sort_by, sort_order=current_sort_order, page=pagination.current_page + 1) }}" aria-label="Next"><span class="d-none d-md-inline">Next</span> »</a>
+                {% else %}<span class="page-link disabled"><span class="d-none d-md-inline">Next</span> »</span>{% endif %}
+            </li>
+        </ul>
+        <p class="pagination-info">Page {{ pagination.current_page }} of {{ pagination.total_pages }} ({{ pagination.total_items }} images total)</p>
+    </nav>
+    {% endif %}
+    {# --- End Pagination Controls --- #}
+
+{% endif %} {# End if not items #}
 
 {# 'Up' Link #}
-{% if up_link_url %}
-<div class="up-link-container">
-    <a href="{{ up_link_url }}" class="up-link">⬆️ Up to Parent Folder</a>
-</div>
-{% endif %}
+{% if up_link_url %} <div class="up-link-container"> <a href="{{ up_link_url }}" class="up-link">⬆️ Up</a> </div> {% endif %}
 
-{# Modal Structure for Text Viewer #}
-<div id="textViewerModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-        <h2 id="modalTitle" class="modal-title">Text File</h2>
-        <button type="button" class="close-button" onclick="closeModal()" title="Close">×</button> {# Ensure closeModal() exists in JS #}
-    </div>
-    <div class="modal-body"><pre id="textContent">Loading...</pre></div>
-  </div>
-</div>
+{# Modals #}
+<div id="textViewerModal" class="modal"> <div class="modal-content"> <div class="modal-header"><h2 id="modalTitle">Text File</h2><button type="button" class="close-button">×</button></div> <div class="modal-body"><pre id="textContent">Loading...</pre></div> </div> </div>
+<div id="imageViewerModal" class="modal image-modal"> <div class="modal-content image-modal-content"> <button type="button" class="close-button image-close-button">×</button> <div class="modal-header"><h2 id="imageModalTitle">Image Viewer</h2></div> <div class="modal-body image-modal-body"> <button type="button" class="nav-arrow prev-arrow" id="imagePrevBtn" title="Previous Image (Left Arrow)" onclick="showPrevImage()">❮</button> <div class="image-container"><img id="modalImage" src="" alt="Image Preview" /><div id="imageLoadingIndicator">Loading...</div></div> <button type="button" class="nav-arrow next-arrow" id="imageNextBtn" title="Next Image (Right Arrow)" onclick="showNextImage()">❯</button> </div> </div> </div>
+{% endblock %} {# End content block #}
 
-{# Modal Structure for Image Viewer #}
-<div id="imageViewerModal" class="modal image-modal">
-  <div class="modal-content image-modal-content">
-    <button type="button" class="close-button image-close-button" onclick="closeImageModal()" title="Close (Esc)">×</button>
-    <div class="modal-header"><h2 id="imageModalTitle" class="modal-title">Image Viewer</h2></div>
-    <div class="modal-body image-modal-body">
-         <button type="button" class="nav-arrow prev-arrow" id="imagePrevBtn" title="Previous Image (Left Arrow)" onclick="showPrevImage()">❮</button>
-         <div class="image-container">
-             <img id="modalImage" src="" alt="Image Preview" />
-             <div id="imageLoadingIndicator" style="display: none; color: #ccc; padding: 20px;">Loading...</div>
-         </div>
-         <button type="button" class="nav-arrow next-arrow" id="imageNextBtn" title="Next Image (Right Arrow)" onclick="showNextImage()">❯</button>
-    </div>
-  </div>
-</div>
-{% endblock %}
-
-{% block scripts_extra %} {# Link JS file and add inline JS for modals #}
-<script src="{{ url_for('static', filename='browse.js') }}"></script> {# Assumes text viewer JS (viewTextFile, closeModal) is here #}
+{% block scripts_extra %}
+<script src="{{ url_for('static', filename='browse.js') }}"></script> {# Assumes text viewer JS is here #}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("Browse DOM loaded. Initializing scripts...");
+
     // --- Delete Confirmation ---
-    function confirmDeleteItem(itemName, itemType) {
+    // Made global immediately as it's simple
+    window.confirmDeleteItem = function(itemName, itemType) {
         const escapedName = itemName.replace(/</g, "<").replace(/>/g, ">");
         let message = `Are you sure you want to permanently delete this ${itemType}: "${escapedName}"?`;
         if (itemType === 'folder') { message += '\n\nWARNING: Deleting a folder will also delete ALL its contents!'; }
         return confirm(message);
-    }
+    };
 
-    // --- Image Viewer Modal ---
-    (function() { // IIFE to scope image viewer variables
-        'use strict';
+        // --- Text Viewer Setup ---
+        (function setupTextViewer() {
+        const textViewerModal = document.getElementById("textViewerModal");
+        const modalTitle = document.getElementById("modalTitle");
+        const textContentElement = document.getElementById("textContent");
+        const textCloseBtn = textViewerModal ? textViewerModal.querySelector(".modal-header .close-button") : null;
+
+        // Define viewTextFile globally if not already in browse.js
+        // Ensure it exists before attaching listeners
+        if (typeof window.viewTextFile !== 'function') {
+            window.viewTextFile = function(url) {
+                 if (!textViewerModal || !modalTitle || !textContentElement) {
+                     alert("Text viewer UI missing.");
+                     console.error("Text modal elements not found for viewTextFile!");
+                     return;
+                 }
+                 console.log("Fetching text:", url);
+                 textContentElement.textContent = "Loading..."; textModalTitle.textContent = "Loading...";
+                 textViewerModal.style.display = "block"; // Show modal
+
+                 fetch(url)
+                     .then(response => { // Check response and parse JSON
+                          if (!response.ok) { return response.json().then(err => { throw new Error(err.error || `HTTP ${response.status}`) }); }
+                          return response.json();
+                      })
+                     .then(data => { // Process data
+                          if (data.error) { throw new Error(data.error); }
+                          textContentElement.textContent = data.content;
+                          modalTitle.textContent = data.filename || "Text File";
+                      })
+                     .catch(error => { // Handle errors
+                          console.error('Text view fetch error:', error);
+                          textContentElement.textContent = `Error: ${error.message}`;
+                          modalTitle.textContent = "Error";
+                     });
+            };
+        }
+
+        // Define closeModal globally if not already in browse.js
+        if (typeof window.closeModal !== 'function') {
+            window.closeModal = function() { // Or closeTextViewerModal
+                if (textViewerModal) textViewerModal.style.display = "none";
+            };
+        }
+
+        // Attach listeners only if elements found
+        if (textViewerModal && textCloseBtn) {
+            textCloseBtn.addEventListener('click', window.closeModal);
+            window.addEventListener('click', (event) => { if (event.target === textViewerModal) window.closeModal(); });
+            document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && textViewerModal.style.display === 'block') window.closeModal(); });
+        } else {
+             console.warn("Text modal elements not fully found during listener setup.");
+        }
+
+        // --- Attach listener specifically to text view buttons ---
+        document.querySelectorAll('button.item-action-button.view[data-url]').forEach(button => {
+            button.addEventListener('click', function(event) {
+                
+                // It's a button type="button", default action isn't submission,
+                // but explicit check doesn't hurt.
+                // event.preventDefault(); // Usually not needed for type="button"
+
+                const url = this.dataset.url;
+                console.log("Text view button clicked, URL:", url);
+                if (url && typeof window.viewTextFile === 'function') {
+                    window.viewTextFile(url); // Call the function to fetch and display
+                } else if (!url) {
+                     console.error("View button clicked, but data-url attribute is missing or empty.");
+                } else {
+                     console.error("View button clicked, but viewTextFile function is not defined.");
+                     alert("Text viewer is unavailable.");
+                }
+            });
+        });
+        console.log("Text viewer listeners attached.");
+
+    })(); // End Text Viewer IIFE
+
+
+    // --- Image Viewer Setup ---
+    (function setupImageViewer() {
         const imageModal = document.getElementById("imageViewerModal");
         const modalImage = document.getElementById("modalImage");
         const imageModalTitle = document.getElementById("imageModalTitle");
         const imagePrevBtn = document.getElementById("imagePrevBtn");
         const imageNextBtn = document.getElementById("imageNextBtn");
         const imageLoadingIndicator = document.getElementById("imageLoadingIndicator");
+        const imageCloseBtn = imageModal ? imageModal.querySelector('.image-close-button') : null;
 
-        // Check essential elements exist
-        if (!imageModal || !modalImage || !imagePrevBtn || !imageNextBtn || !imageModalTitle) {
-             console.error("Image modal elements not all found. Viewer disabled.");
-             // Define dummy functions so onclick doesn't error out
-             window.viewImageModal = function() { console.error("Image modal not initialized."); };
-             window.closeImageModal = function() {}; window.showPrevImage = function() {}; window.showNextImage = function() {};
+        if (!imageModal || !modalImage || !imagePrevBtn || !imageNextBtn || !imageModalTitle || !imageLoadingIndicator || !imageCloseBtn) {
+             console.error("Image modal elements not found. Viewer disabled.");
+             window.viewImageModal = function() { console.error("Image modal not initialized."); }; // Define dummy
              return; // Stop initialization
         }
 
-        let currentImageIndex = -1;
-        let imageItemIds = [];
-        // Get current path from Jinja (passed from Flask) - essential for building URLs
-        let currentImagePath = "{{ current_path }}";
+        let currentImageIndex = -1; let imageItemIds = [];
+        let currentImagePath = "{{ current_path }}"; // Static for this page load
 
-        function updateImageNavButtons() {
-            if (!imagePrevBtn || !imageNextBtn) return;
-            imagePrevBtn.disabled = (currentImageIndex <= 0);
-            imageNextBtn.disabled = (currentImageIndex >= imageItemIds.length - 1);
-        }
+        function updateImageNavButtons() { /* ... same logic ... */ imagePrevBtn.disabled = (currentImageIndex <= 0); imageNextBtn.disabled = (currentImageIndex >= imageItemIds.length - 1); }
+        function loadImageIntoModal(index) { /* ... same logic ... */
+            if (index < 0 || index >= imageItemIds.length) return; currentImageIndex = index; updateImageNavButtons(); const itemData = imageItemIds[currentImageIndex]; const itemId = itemData.id; const itemName = itemData.name || `Image ${index + 1}`; const urlBaseRoot = "{{ url_for('view_image_file', item_id='__ITEMID__') }}".replace('__ITEMID__', itemId); const urlBaseSub = "{{ url_for('view_image_file', parent_path_in_url='__PARENT__', item_id='__ITEMID__') }}"; let imageUrl = ''; try { const pageParentPath = "{{ current_path }}"; /* Always use path from page load */ if (pageParentPath) { const encodedParent = pageParentPath.split('/').map(encodeURIComponent).join('/'); imageUrl = urlBaseSub.replace('__PARENT__', encodedParent).replace('__ITEMID__', itemId); } else { imageUrl = urlBaseRoot; } } catch (e) { console.error("URL build err", e); } console.log(`Loading image: idx=${index}, id=${itemId}, name=${itemName}, url=${imageUrl}`); imageLoadingIndicator.textContent = 'Loading...'; imageLoadingIndicator.style.display = 'block'; imageModalTitle.textContent = "Loading..."; modalImage.style.opacity = '0'; modalImage.removeAttribute('src'); const img = new Image(); img.onload = () => { modalImage.src = imageUrl; modalImage.alt = itemName; imageModalTitle.textContent = itemName; imageLoadingIndicator.style.display = 'none'; setTimeout(() => { modalImage.style.opacity = '1'; }, 30); }; img.onerror = () => { console.error("Img load err:", imageUrl); imageLoadingIndicator.textContent = 'Error loading image.'; imageLoadingIndicator.style.display = 'block'; modalImage.alt = "Error"; imageModalTitle.textContent = "Error"; }; if (imageUrl) { img.src = imageUrl; } else { imageLoadingIndicator.textContent = 'Error building URL.'; imageLoadingIndicator.style.display = 'block'; imageModalTitle.textContent = "Error"; }
+         }
 
-        function loadImageIntoModal(index) {
-            if (index < 0 || index >= imageItemIds.length) return;
-            currentImageIndex = index;
-            updateImageNavButtons();
+        // Define functions in scope first
+        const internalShowPrevImage = function() { console.log("internalShowPrevImage called", currentImageIndex); if (currentImageIndex > 0) { loadImageIntoModal(currentImageIndex - 1); } };
+        const internalShowNextImage = function() { console.log("internalShowNextImage called", currentImageIndex); if (currentImageIndex < imageItemIds.length - 1) { loadImageIntoModal(currentImageIndex + 1); } };
+        const internalCloseImageModal = function() { console.log("internalCloseImageModal called"); imageModal.style.display = "none"; modalImage.src = ""; if (imageModalTitle) imageModalTitle.textContent = ""; document.removeEventListener('keydown', handleImageModalKeydown); currentImageIndex = -1; imageItemIds = []; };
+        const internalViewImageModal = function(itemId) {
+             console.log("internalViewImageModal called for", itemId);
+             imageItemIds = []; const listItems = document.querySelectorAll('li.file-item[data-id]');
+             listItems.forEach(li => { if (li.classList.contains('item-type-image')) { imageItemIds.push({ id: li.dataset.id, name: li.dataset.name }); } });
+             if (imageItemIds.length === 0) { console.warn("No image items found."); return; }
+             currentImageIndex = imageItemIds.findIndex(item => item.id === itemId); if (currentImageIndex === -1) { console.error("Clicked ID not found:", itemId); return; }
+             currentImagePath = "{{ current_path }}"; // Use path from page load
+             imageModal.style.display = "flex"; loadImageIntoModal(currentImageIndex); document.addEventListener('keydown', handleImageModalKeydown);
+        };
+        function handleImageModalKeydown(event) { if (!imageModal || imageModal.style.display !== "flex") return; switch (event.key) { case 'ArrowLeft': internalShowPrevImage(); break; case 'ArrowRight': internalShowNextImage(); break; case 'Escape': internalCloseImageModal(); break; } }
 
-            const itemData = imageItemIds[currentImageIndex];
-            const itemId = itemData.id;
-            const itemName = itemData.name || `Image ${index + 1}`;
+        // Assign to window AFTER definition and element check
+        window.showPrevImage = internalShowPrevImage;
+        window.showNextImage = internalShowNextImage;
+        window.closeImageModal = internalCloseImageModal;
+        window.viewImageModal = internalViewImageModal;
 
-            // Build URL
-            // Ensure the endpoint 'view_image_file' exists and handles parent_path_in_url
-            const urlBaseRoot = "{{ url_for('view_image_file', item_id='__ITEMID__') }}".replace('__ITEMID__', itemId);
-            const urlBaseSub = "{{ url_for('view_image_file', parent_path_in_url='__PARENT__', item_id='__ITEMID__') }}";
-            let imageUrl = '';
-            try {
-                if (currentImagePath) { // Use sub-folder URL structure if currentImagePath is not empty
-                    const encodedParent = currentImagePath.split('/').map(encodeURIComponent).join('/');
-                    imageUrl = urlBaseSub.replace('__PARENT__', encodedParent).replace('__ITEMID__', itemId);
-                } else { // Use root URL structure if currentImagePath is empty
-                    imageUrl = urlBaseRoot;
-                }
-            } catch (e) { console.error("Error building image URL", e); imageUrl = ""; }
+        // Attach listeners using defined functions
+        imagePrevBtn.addEventListener('click', internalShowPrevImage);
+        imageNextBtn.addEventListener('click', internalShowNextImage);
+        imageCloseBtn.addEventListener('click', internalCloseImageModal);
+        imageModal.addEventListener('click', (event) => { if (event.target === imageModal) internalCloseImageModal(); });
+        // Attach listeners for view buttons and thumbnail links
+         document.querySelectorAll('.item-action-button.view[data-itemid]').forEach(button => { button.addEventListener('click', function() { internalViewImageModal(this.dataset.itemid); }); });
+         document.querySelectorAll('.image-grid a.item-thumbnail-link').forEach(link => { link.onclick = function() { const li = link.closest('li.file-item'); if(li && li.dataset.id) { internalViewImageModal(li.dataset.id); } return false; }; }); // Re-attach onclick for grid thumbnails
+
+        console.log("Image viewer initialized.");
+    })();
 
 
-            console.log(`Loading image: index=${index}, id=${itemId}, name=${itemName}, url=${imageUrl}`);
-            if (imageLoadingIndicator) imageLoadingIndicator.style.display = 'block';
-            if (imageModalTitle) imageModalTitle.textContent = "Loading...";
-            modalImage.style.opacity = '0';
-            modalImage.removeAttribute('src');
-
-            const img = new Image();
-            img.onload = () => {
-                modalImage.src = imageUrl;
-                modalImage.alt = itemName;
-                if (imageModalTitle) imageModalTitle.textContent = itemName;
-                if (imageLoadingIndicator) imageLoadingIndicator.style.display = 'none';
-                setTimeout(() => { modalImage.style.opacity = '1'; }, 30);
-            };
-            img.onerror = () => {
-                console.error("Failed to load image:", imageUrl);
-                if (imageLoadingIndicator) { imageLoadingIndicator.textContent = 'Error loading image.'; imageLoadingIndicator.style.display = 'block'; }
-                modalImage.alt = "Error loading image";
-                if (imageModalTitle) imageModalTitle.textContent = "Error Loading Image";
-            };
-            if (imageUrl) { // Only set src if URL was built successfully
-                 img.src = imageUrl;
-            } else {
-                 if (imageLoadingIndicator) { imageLoadingIndicator.textContent = 'Error building image URL.'; imageLoadingIndicator.style.display = 'block'; }
-                 if (imageModalTitle) imageModalTitle.textContent = "Error";
-            }
-        }
-
-        // Make functions globally accessible for onclick handlers
-        window.showPrevImage = function() {
-            if (currentImageIndex > 0) { loadImageIntoModal(currentImageIndex - 1); }
-        }
-        window.showNextImage = function() {
-            if (currentImageIndex < imageItemIds.length - 1) { loadImageIntoModal(currentImageIndex + 1); }
-        }
-
-        window.viewImageModal = function(itemId) {
-             imageItemIds = []; // Reset list
-             // Query list items that HAVE data-id (avoids errors if structure changes)
-             const listItems = document.querySelectorAll('li.file-item[data-id]');
-             listItems.forEach(li => {
-                // Only add if it's an image type (check class)
-                if (li.classList.contains('item-type-image')) {
-                    imageItemIds.push({ id: li.dataset.id, name: li.dataset.name }); // Get id and name from data attributes
-                }
-             });
-
-             if (imageItemIds.length === 0) { console.warn("No image items with data-id found."); return; }
-
-             currentImageIndex = imageItemIds.findIndex(item => item.id === itemId);
-             if (currentImageIndex === -1) { console.error("Clicked item ID not found in collected image list."); return; }
-
-             console.log("Opening image modal for index:", currentImageIndex, "ID:", itemId);
-             currentImagePath = "{{ current_path }}"; // Update current path when opening
-             imageModal.style.display = "flex";
-             loadImageIntoModal(currentImageIndex);
-             document.addEventListener('keydown', handleImageModalKeydown);
-        }
-
-        window.closeImageModal = function() {
-            imageModal.style.display = "none";
-            modalImage.src = "";
-            if (imageModalTitle) imageModalTitle.textContent = "";
-            document.removeEventListener('keydown', handleImageModalKeydown);
-            currentImageIndex = -1; imageItemIds = [];
-        }
-
-        function handleImageModalKeydown(event) {
-            if (!imageModal || imageModal.style.display !== "flex") return;
-            switch (event.key) {
-                case 'ArrowLeft': showPrevImage(); break;
-                case 'ArrowRight': showNextImage(); break;
-                case 'Escape': closeImageModal(); break;
-            }
-        }
-
-        imageModal.addEventListener('click', function(event) { if (event.target === imageModal) closeImageModal(); });
-
-    })(); // End Image Viewer IIFE
-    (function() {
+    // --- Multi-file Upload Logic ---
+    (function() { /* ... keep existing multi-upload JS ... */
         'use strict';
-        const uploadForm = document.getElementById('uploadForm');
-        const fileInput = document.getElementById('file-upload');
-        const uploadProgressDiv = document.getElementById('uploadProgress');
-        const progressText = document.getElementById('progressText');
-        const progressBar = document.getElementById('progressBar');
-        const uploadDetailsList = document.getElementById('uploadDetails');
-        const submitButton = uploadForm ? uploadForm.querySelector('button[type="submit"]') : null;
-        // --- Get the Label associated with the file input ---
-        const fileInputLabel = uploadForm ? uploadForm.querySelector('label[for="file-upload"]') : null;
-        const originalLabelText = fileInputLabel ? fileInputLabel.innerHTML : '① Choose Files'; // Store original text/icon
-
-        if (!uploadForm || !fileInput || !uploadProgressDiv || !progressText || !progressBar || !uploadDetailsList || !submitButton || !fileInputLabel) { // Added label check
-            console.warn("Upload form elements not found. Multi-upload disabled.");
-            return;
-        }
-
-        // --- NEW: Event Listener for File Selection ---
-        fileInput.addEventListener('change', function() {
-            const numFiles = this.files.length;
-            if (numFiles > 0) {
-                // Update label text to show file count
-                fileInputLabel.innerHTML = ` (${numFiles}) Files Selected`; // Change text
-                fileInputLabel.style.backgroundColor = "#ffc107"; // Keep original color or change slightly
-                submitButton.style.display = 'inline-flex'; // Ensure upload button is visible
-                console.log(`${numFiles} files selected.`);
-            } else {
-                // Reset label text if no files are selected (e.g., user cancels dialog)
-                fileInputLabel.innerHTML = originalLabelText; // Restore original text/icon
-                // Optionally hide the upload button again if no files are chosen
-                // submitButton.style.display = 'none';
-            }
-        });
-        // --- END NEW Event Listener ---
-
+        const uploadForm = document.getElementById('uploadForm'); const fileInput = document.getElementById('file-upload'); const uploadProgressDiv = document.getElementById('uploadProgress'); const progressText = document.getElementById('progressText'); const progressBar = document.getElementById('progressBar'); const uploadDetailsList = document.getElementById('uploadDetails'); const submitButton = uploadForm ? uploadForm.querySelector('button[type="submit"]') : null; const fileInputLabel = uploadForm ? uploadForm.querySelector('label[for="file-upload"]') : null; const originalLabelText = fileInputLabel ? fileInputLabel.innerHTML : '① Choose Files';
+        if (!uploadForm || !fileInput || !uploadProgressDiv || !progressText || !progressBar || !uploadDetailsList || !submitButton || !fileInputLabel) { console.warn("Upload elements missing."); return; }
+        fileInput.addEventListener('change', function() { const numFiles = this.files.length; if (numFiles > 0) { fileInputLabel.innerHTML = ` (${numFiles}) File${numFiles > 1 ? 's':''} Selected`; submitButton.style.display = 'inline-flex'; } else { fileInputLabel.innerHTML = originalLabelText; } });
         uploadForm.addEventListener('submit', async function(event) {
-            event.preventDefault();
-            console.log("Upload form submit intercepted.");
-
-            const files = fileInput.files;
-            if (!files || files.length === 0) {
-                alert("Please select files to upload.");
-                fileInputLabel.innerHTML = originalLabelText; // Reset label if submit attempted with no files
-                return;
-            }
-            // ... (rest of the existing submit handler: progress display, loop, fetch, summary, reload) ...
-
-            const totalFiles = files.length;
-            let uploadedCount = 0;
-            let errorCount = 0;
-            let failedFilesInfo = []; // Store details about failed files
-            const uploadUrl = this.action;
-
-            uploadProgressDiv.style.display = 'block';
-            uploadDetailsList.innerHTML = '';
-            submitButton.disabled = true;
-            submitButton.textContent = 'Uploading...';
-            progressBar.value = 0;
-            progressText.textContent = `Starting upload of ${totalFiles} file(s)...`;
-            fileInputLabel.innerHTML = originalLabelText; // Reset choose button label during upload
-
-            // --- Process files one by one ---
-            for (let i = 0; i < totalFiles; i++) {
-                // ... (existing loop content: FormData, fetch, progress update) ...
-                 const file = files[i];
-                 const formData = new FormData();
-                 formData.append('file', file);
-                 progressText.textContent = `Uploading ${i + 1}/${totalFiles}: ${file.name}`;
-                 const detailItem = document.createElement('li');
-                 detailItem.textContent = `⏳ ${file.name}`;
-                 uploadDetailsList.appendChild(detailItem);
-                 uploadDetailsList.scrollTop = uploadDetailsList.scrollHeight;
-
-                 try {
-                     const response = await fetch(uploadUrl, { method: 'POST', body: formData });
-                     const responseData = await response.json();
-                     if (response.ok && responseData.success) {
-                         detailItem.textContent = `✅ ${responseData.filename || file.name}`;
-                         uploadedCount++;
-                     } else {
-                         const errorMsg = responseData.error || `HTTP Error ${response.status}`;
-                         detailItem.textContent = `❌ ${file.name} (${errorMsg})`;
-                         errorCount++;
-                         failedFilesInfo.push(`${file.name} (${errorMsg})`);
-                     }
-                 } catch (error) {
-                     const errorMsg = `Network Error`;
-                     detailItem.textContent = `❌ ${file.name} (${errorMsg})`;
-                     errorCount++;
-                     failedFilesInfo.push(`${file.name} (${errorMsg})`);
-                 }
-                 progressBar.value = ((i + 1) / totalFiles) * 100;
-            } // End for loop
-
-            // --- Final Summary ---
-             progressBar.value = 100;
-             let summary = `Finished: ${uploadedCount} uploaded successfully.`;
-             if (errorCount > 0) { summary += ` ${errorCount} failed.`; }
-             progressText.textContent = summary;
-             console.log("All file uploads attempted.");
-             submitButton.disabled = false;
-             submitButton.textContent = '② Upload Selected'; // Restore button text
-
-             // Alert user and reload
-             let alertMessage = summary;
-             if (failedFilesInfo.length > 0) { alertMessage += "\n\nFailed files:\n- " + failedFilesInfo.join("\n- "); }
-             alert(alertMessage);
-             window.location.reload();
+            event.preventDefault(); const files = fileInput.files; if (!files || files.length === 0) { alert("Please select files."); fileInputLabel.innerHTML = originalLabelText; return; }
+            const totalFiles = files.length; let uploadedCount = 0; let errorCount = 0; let failedFilesInfo = []; const uploadUrl = this.action;
+            uploadProgressDiv.style.display = 'block'; uploadDetailsList.innerHTML = ''; submitButton.disabled = true; submitButton.textContent = 'Uploading...'; progressBar.value = 0; progressText.textContent = `Starting upload of ${totalFiles} file(s)...`; fileInputLabel.innerHTML = originalLabelText;
+            for (let i = 0; i < totalFiles; i++) { const file = files[i]; const formData = new FormData(); formData.append('file', file); progressText.textContent = `Uploading ${i + 1}/${totalFiles}: ${file.name}`; const detailItem = document.createElement('li'); detailItem.textContent = `⏳ ${file.name}`; uploadDetailsList.appendChild(detailItem); uploadDetailsList.scrollTop = uploadDetailsList.scrollHeight; try { const response = await fetch(uploadUrl, { method: 'POST', body: formData }); const responseData = await response.json(); if (response.ok && responseData.success) { detailItem.textContent = `✅ ${responseData.filename || file.name}`; uploadedCount++; } else { const errorMsg = responseData.error || `HTTP Error ${response.status}`; detailItem.textContent = `❌ ${file.name} (${errorMsg})`; errorCount++; failedFilesInfo.push(`${file.name} (${errorMsg})`); } } catch (error) { const errorMsg = `Network Error`; detailItem.textContent = `❌ ${file.name} (${errorMsg})`; errorCount++; failedFilesInfo.push(`${file.name} (${errorMsg})`); } progressBar.value = ((i + 1) / totalFiles) * 100; }
+            progressBar.value = 100; let summary = `Finished: ${uploadedCount} uploaded.`; if (errorCount > 0) { summary += ` ${errorCount} failed.`; } progressText.textContent = summary; submitButton.disabled = false; submitButton.textContent = '② Upload Selected';
+            let alertMessage = summary; if (failedFilesInfo.length > 0) { alertMessage += "\n\nFailed files:\n- " + failedFilesInfo.join("\n- "); } alert(alertMessage); window.location.reload();
         });
+     })();
 
-    })(); // End multi-upload IIFE
+    (function setupActionButtons() {
+         document.querySelectorAll('.item-actions button[data-url], .action-bar button[data-url]').forEach(button => { // Include action bar buttons
+             button.addEventListener('click', function() {
+                 const url = this.dataset.url;
+                 if (url) {
+                     if (this.classList.contains('download') || this.classList.contains('download-playlist')) { // Check for download classes
+                         console.log("Download button clicked:", url);
+                         // Trigger download
+                         const link = document.createElement('a');
+                         link.href = url;
+                         link.download = ''; // Let browser handle name
+                         document.body.appendChild(link);
+                         link.click();
+                         document.body.removeChild(link);
+                     } else {
+                         // Navigate for play buttons
+                         console.log("Navigation button clicked:", url);
+                         window.location.href = url;
+                     }
+                 } else {
+                     console.warn("Button clicked without data-url:", this);
+                 }
+             });
+         });
+         console.log("Action button listeners attached.");
+     })();
+
+
+}); // End DOMContentLoaded listener
+</script>
 </script>
 {% endblock %}

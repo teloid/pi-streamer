@@ -11,9 +11,10 @@
 </head>
 <body>
     <header class="site-header">
+
         <div class="container header-content">
              {# Link the logo back to the main browse page #}
-             <a href="{{ url_for('browse') }}" class="logo">Pi Streamer</a>
+             <a href="{{ url_for('browse') }}" class="rainbow rainbow_text_animated">Pi Streamer</a>
             <nav>
                 {# Show different navigation links based on login status #}
                 {% if session.logged_in %}
