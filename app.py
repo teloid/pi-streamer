@@ -442,51 +442,86 @@ def upload_file_handler(subpath):
 @app.route('/create_folder/<path:subpath>', methods=['POST'])
 @auth.login_required
 def create_folder_handler(subpath):
-    """Handles creation of a new folder."""
+    """Handles creation of a new folder within the specified subpath."""
     parent_folder_path = get_relative_path_from_request(subpath)
-    # ... (keep existing correct logic) ...
+    app.logger.debug(f"Create Folder Handler: Parent Folder = '{parent_folder_path}'")
     parent_dir_abs = file_utils.get_safe_fullpath(parent_folder_path)
-    if parent_dir_abs is None or not os.path.isdir(parent_dir_abs): flash(f"Parent directory '{parent_folder_path or '/'}' not found.", "error"); return redirect(request.headers.get("Referer") or url_for('browse'))
+
+    if parent_dir_abs is None or not os.path.isdir(parent_dir_abs):
+        flash(f"Folder creation failed: Parent directory '{parent_folder_path or '/'}' not found or invalid.", "error")
+        return redirect(request.headers.get("Referer") or url_for('browse'))
+
     folder_name = request.form.get('foldername', '').strip()
-    if not folder_name or '/' in folder_name or '\\' in folder_name or folder_name.startswith('.') or folder_name == '..': flash(f"Invalid folder name: '{folder_name}'.", "error"); return redirect(url_for('browse', subpath=parent_folder_path))
-    safe_folder_name = folder_name; new_folder_abs = os.path.join(parent_dir_abs, safe_folder_name)
-    if os.path.exists(new_folder_abs): flash(f"Folder '{safe_folder_name}' already exists.", "error")
+    if not folder_name or '/' in folder_name or '\\' in folder_name or folder_name.startswith('.') or folder_name == '..':
+        flash(f"Invalid folder name: '{folder_name}'. Use simple names without slashes or leading dots.", "error")
+        return redirect(url_for('browse', subpath=parent_folder_path))
+
+    # Use the original valid name, secure_filename can be too strict
+    safe_folder_name = folder_name
+    new_folder_abs = os.path.join(parent_dir_abs, safe_folder_name)
+
+    if os.path.exists(new_folder_abs):
+        flash(f"Folder creation failed: '{safe_folder_name}' already exists.", "error")
     else:
-        try: os.makedirs(new_folder_abs); flash(f"Folder '{safe_folder_name}' created.", 'success')
-        except OSError as e: logger.error(f"Failed to create folder '{new_folder_abs}': {e}"); flash(f"OS error creating folder '{safe_folder_name}'.", 'error')
-        except Exception as e: logger.error(f"Error creating folder '{new_folder_abs}': {e}", exc_info=True); flash(f"Error creating folder '{safe_folder_name}'.", 'error')
-    return redirect(url_for('browse', subpath=parent_folder_path))
+        try:
+            os.makedirs(new_folder_abs)
+            app.logger.info(f"Folder '{safe_folder_name}' created successfully in '{parent_folder_path}'")
+            flash(f"Folder '{safe_folder_name}' created successfully.", 'success')
+        except OSError as e:
+            app.logger.error(f"Failed to create folder '{new_folder_abs}': {e}")
+            flash(f"OS error creating folder '{safe_folder_name}'. Check permissions/name.", 'error')
+        except Exception as e:
+             app.logger.error(f"Unexpected error creating folder '{new_folder_abs}': {e}", exc_info=True)
+             flash(f"Unexpected error creating folder '{safe_folder_name}'.", 'error')
+    return redirect(url_for('browse', subpath=parent_folder_path)) # Redirect back
 
 
 @app.route('/delete/<item_id>', defaults={'parent_path_in_url': ''}, methods=['POST'])
 @app.route('/delete/<path:parent_path_in_url>/<item_id>', methods=['POST'])
-@auth.login_required
+@auth.login_required # Deletion MUST require login
 def delete_item(parent_path_in_url, item_id):
     """Deletes a file or folder."""
-    # Use the common validation function, also getting is_dir
-    cleaned_parent_path, item_full_relative_path, target_item_abs, is_dir = get_validated_item_paths(parent_path_in_url, item_id)
-    item_name = os.path.basename(item_full_relative_path)
-    app.logger.info(f"Delete Request: Parent='{cleaned_parent_path}', Item Rel='{item_full_relative_path}', Item Abs='{target_item_abs}', IsDir={is_dir}")
+    cleaned_parent_path = get_relative_path_from_request(parent_path_in_url)
+    app.logger.info(f"Delete Request: Parent='{cleaned_parent_path}', Item ID='{item_id}'")
 
-    # Path validation is done in get_validated_item_paths now
+    # Find the item's relative path first to know what we're deleting
+    item_full_relative_path = file_utils.find_path_by_id(cleaned_parent_path, item_id)
+    if item_full_relative_path is None:
+        flash(f"Error: Item to delete not found.", "error")
+        # Redirect back to the parent folder where the delete was attempted
+        return redirect(url_for('browse', subpath=cleaned_parent_path))
+
+    target_item_abs = file_utils.get_safe_fullpath(item_full_relative_path)
+    item_name = os.path.basename(item_full_relative_path)
+
+    # Important safety check: ensure the path is still valid and within MEDIA_DIR_BASE
+    if target_item_abs is None or not target_item_abs.startswith(os.path.abspath(config.MEDIA_DIR_BASE)):
+        app.logger.error(f"Deletion blocked: Unsafe path detected. Relative='{item_full_relative_path}', Absolute='{target_item_abs}'")
+        flash(f"Error: Cannot delete '{item_name}' due to invalid path.", "error")
+        return redirect(url_for('browse', subpath=cleaned_parent_path))
 
     try:
-        if is_dir == False: # It's a file
+        if os.path.isfile(target_item_abs):
             os.remove(target_item_abs)
             app.logger.info(f"Successfully deleted file: '{target_item_abs}'")
             flash(f"File '{item_name}' deleted successfully.", "success")
-        elif is_dir == True: # It's a directory
+        elif os.path.isdir(target_item_abs):
+            # Use shutil.rmtree to delete directory and all its contents
             shutil.rmtree(target_item_abs)
             app.logger.info(f"Successfully deleted folder and contents: '{target_item_abs}'")
             flash(f"Folder '{item_name}' and its contents deleted successfully.", "success")
         else:
-            # Should not happen if get_validated_item_paths worked, but handle defensively
             app.logger.warning(f"Attempted to delete non-file/non-dir item: '{target_item_abs}'")
-            flash(f"Cannot delete '{item_name}': Item not found or invalid type.", "warning")
-    except OSError as e: logger.error(f"OS error deleting '{target_item_abs}': {e}"); flash(f"Error deleting '{item_name}': {e.strerror}.", "error")
-    except Exception as e: logger.error(f"Error deleting '{target_item_abs}': {e}", exc_info=True); flash(f"Error deleting '{item_name}'.", "error")
+            flash(f"Cannot delete '{item_name}': Item is not a file or folder.", "warning")
 
-    # Redirect back to the parent folder
+    except OSError as e:
+        app.logger.error(f"OS error deleting '{target_item_abs}': {e}", exc_info=True)
+        flash(f"Error deleting '{item_name}': {e.strerror}. Check permissions.", "error")
+    except Exception as e:
+        app.logger.error(f"Unexpected error deleting '{target_item_abs}': {e}", exc_info=True)
+        flash(f"An unexpected error occurred while deleting '{item_name}'.", "error")
+
+    # Redirect back to the parent folder after attempting deletion
     return redirect(url_for('browse', subpath=cleaned_parent_path))
 
 
