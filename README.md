@@ -27,25 +27,6 @@ Think of it as a lightweight, self-hosted alternative to cloud storage or comple
 *   **Password Protection:** Secures access to the main browser interface.
 *   **Responsive (Basic):** Functional on desktop and mobile browsers.
 
-## Project Structure
-
-pi-streamer/
-├── app.py # Main Flask app setup, routes
-├── auth.py # Authentication logic & password helper
-├── config.py # Configuration (paths, password hash, etc.)
-├── file_utils.py # File system interaction, path safety, item listing
-├── templates/
-│ ├── _base.html # Base layout template
-│ ├── browse.html # Main file browser
-│ ├── login.html # Login page (optional, if not using string in auth.py)
-│ ├── player_audio.html # Simple audio player
-│ ├── player_video.html # Video.js video player
-│ └── welcome.html # Initial welcome/entry page
-├── static/
-│ └── style.css # Main CSS styles (includes themes)
-│ └── browse.js # JavaScript for Text Modal (optional, can be inline)
-└── README.md # This file
-
 ## Setup & Running
 
 **(Keep the existing Setup & Running steps 1-10 as they were)**
