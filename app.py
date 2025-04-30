@@ -533,4 +533,4 @@ except Exception as map_e: app.logger.error(f"Could not log URL map: {map_e}")
 application = app
 if __name__ == '__main__':
     print("--- Development Server ---"); print(f"Media Directory: {config.MEDIA_DIR_BASE}"); print(f"Access URL: http://0.0.0.0:5000"); print("---")
-    app.run(host='0.0.0.0', port=5000, debug=True) # Use debug=False in production
+    app.run(host='0.0.0.0', port=5000, debug=False) # Use debug=False in production
