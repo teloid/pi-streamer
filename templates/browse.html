@@ -91,7 +91,7 @@
                  {% endif %}
                 {# Download Button (Files ONLY) #}
                 {% if item.type != 'folder' %}
-                 <button type="button" class="item-action-button download" data-url="{{ url_for('download_file', parent_path_in_url=current_path, item_id=item.id) }}" title="Download this file">Download</button>
+                <a href="{{ url_for('download_file', parent_path_in_url=current_path, item_id=item.id) }}" class="item-action-button download" title="Download this file">Download</a>
                 {% endif %}
                 {# Delete Button (Form remains) #}
                 <form method="POST" action="{{ url_for('delete_item', parent_path_in_url=current_path, item_id=item.id) }}" style="display: inline;" onsubmit="return confirmDeleteItem('{{ item.display_name | escape }}', '{{ item.type }}');">
