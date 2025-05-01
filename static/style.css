@@ -127,7 +127,32 @@ a:focus, button:focus, input:focus, select:focus, textarea:focus { outline: 2px 
 .breadcrumbs { margin-bottom: 20px; color: #aaa; font-size: .9em; word-break: break-all; }
 .breadcrumbs a { color: #00bcd4; text-decoration: none; } .breadcrumbs a:hover { text-decoration: underline; }
 .breadcrumbs span:not(:last-child)::after, .breadcrumbs a:not(:last-child)::after { content: ' / '; margin: 0 5px; color: #777; }
-h1.browser-title { border-bottom: 1px solid #444; padding-bottom: 10px; color: #f0f0f0; margin-bottom: 15px; word-break: break-all; font-size: 1.8em; }
+/* --- Title Bar Layout (Title Left, Disk Right) --- */
+.title-bar {
+    display: flex;              /* Core: Enable Flexbox */
+    justify-content: space-between; /* Core: Pushes children to opposite ends */
+    align-items: baseline;     /* Core: Align text baselines on the same line */
+                                /* Alternatives: 'center' for vertical center */
+                                /* 'flex-end' aligns bottoms */
+    flex-wrap: nowrap;          /* Prevent wrapping to new line by default */
+    gap: 20px;                /* Add horizontal gap between title and info */
+    margin-bottom: 15px;      /* Space below the title bar */
+    border-bottom: 1px solid var(--border-main); /* Bottom border */
+    padding-bottom: 10px;     /* Padding below content before border */
+}
+
+h1.browser-title {
+    border-bottom: none;      /* No border on H1 itself */
+    padding-bottom: 0;
+    margin: 0;                /* Remove default H1 margins */
+    flex-grow: 1;             /* Allow title to take available space (optional) */
+    flex-shrink: 1;           /* Allow title to shrink if needed */
+    min-width: 0;             /* Helps shrinking work with long words */
+    /* Ensure text doesn't wrap excessively if possible */
+    /* white-space: nowrap; */ /* Uncomment if you NEVER want title wrap */
+    /* overflow: hidden; */
+    /* text-overflow: ellipsis; */
+}
 
 /* --- Sort Controls --- */
 .sort-controls { margin-bottom: 20px; font-size: 0.9em; color: #ccc; padding: 5px 0; border-bottom: 1px solid #383838; }
@@ -162,6 +187,17 @@ h1.browser-title { border-bottom: 1px solid #444; padding-bottom: 10px; color: #
 #progressBar::-moz-progress-bar { background-color: #28a745; }
 #uploadDetails { font-size: 0.8em; list-style: none; padding: 0; margin-top: 5px; max-height: 100px; overflow-y: auto; color: #ccc; border-top: 1px solid #555; padding-top: 5px; }
 #uploadDetails li { margin-bottom: 2px; }
+
+/* --- Disk Space Info Styling --- */
+.disk-space-info {
+    padding: 0; background-color: transparent; border: none;
+    font-size: 0.85em; color: var(--text-dim); text-align: right;
+    flex-shrink: 0; white-space: nowrap;
+}
+.disk-space-info span {
+    display: block; margin-bottom: 3px;
+}
+
 
 /* --- File Listing (Default List View) --- */
 .file-list { list-style: none; padding: 0; margin: 0; }
@@ -298,4 +334,28 @@ h1.browser-title { border-bottom: 1px solid #444; padding-bottom: 10px; color: #
     .image-grid .item-thumbnail-link { height: 90px; }
     .page-link { font-size: 0.9em; padding: 5px 8px; }
     .pagination-info { font-size: 0.8em;}
+}
+@media (max-width: 700px) { /* Adjust breakpoint as needed */
+    .title-bar {
+        flex-wrap: wrap;          /* Allow wrapping */
+        justify-content: center; /* Center items when wrapped */
+        text-align: center;
+        gap: 5px 15px; /* Reduce vertical gap when wrapped */
+    }
+    h1.browser-title {
+        text-align: center;
+        width: 100%; /* Take full width when wrapped */
+        flex-grow: 0; /* Not needed when wrapped */
+        margin-bottom: 5px; /* Space when wrapped */
+        /* Allow text wrap if needed */
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+    .disk-space-info {
+        width: 100%;
+        text-align: center;
+        margin-left: 0;
+    }
+     .disk-space-info { width: 100%; text-align: center; margin-left: 0; }
 }

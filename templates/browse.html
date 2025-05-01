@@ -11,7 +11,22 @@
     {% endfor %}
 </div>
 
-<h1 class="browser-title">Contents: {{ current_folder_name }}</h1> {# Page Title #}
+{# --- Wrapper for Title and Disk Space --- #}
+<div class="title-bar">
+    {# Page Title #}
+    <h1 class="browser-title">Contents: {{ current_folder_name }}</h1>
+
+    {# Display Free Space (Moved here) #}
+    {% if free_space %}
+    <div class="disk-space-info">
+        <span title="Filesystem for '{{ free_space.path }}'">
+            {{ free_space.free_gb }} GB Free / {{ free_space.total_gb }} GB Total ({{ free_space.used_percent }}% Used)
+        </span>
+
+    </div>
+    {% endif %}
+</div>
+{# --- End Wrapper --- #}
 
 {# --- Sort Controls --- #}
 <div class="sort-controls">
@@ -51,6 +66,7 @@
     {# Upload Progress Area #}
      <div id="uploadProgress"><span id="progressText"></span><progress id="progressBar" value="0" max="100"></progress><ul id="uploadDetails"></ul></div>
 </div>
+
 
 {% if not items %} {# Handle Empty Folder #}
     <p class="empty-folder">This folder is empty.</p>

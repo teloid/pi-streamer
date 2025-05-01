@@ -19,6 +19,14 @@ from flask import (
 from werkzeug.utils import secure_filename
 from urllib.parse import quote, unquote, urljoin
 
+import platform # To check OS type
+import math # For GB conversion
+# Import ctypes ONLY if on Windows
+if platform.system() == "Windows":
+    import ctypes
+else: # POSIX specific imports
+    import stat # To interpret statvfs results (optional but good)
+
 # --- Local Imports ---
 import config  # Import configuration
 import auth    # Import authentication logic
@@ -143,11 +151,80 @@ def browse(subpath):
 
     target_dir_abs = file_utils.get_safe_fullpath(current_path)
     if target_dir_abs is None or not os.path.isdir(target_dir_abs):
+         # ... (error handling - keep existing) ...
          flash(f"Error: Directory not found: '{current_path or '/'}'", "error")
-         # Try redirecting to parent if current path exists somewhat
          parent_of_invalid = os.path.dirname(current_path).replace("\\","/") if current_path else ''
          if parent_of_invalid == ".": parent_of_invalid = ""
          return redirect(url_for('browse', subpath=parent_of_invalid))
+        # --- Get Filesystem Free Space (Cross-Platform) ---
+    free_space_info = None
+    try:
+        system_type = platform.system()
+        app.logger.debug(f"Checking free space for '{target_dir_abs}' on system type: {system_type}")
+
+        if system_type == "Windows":
+            if os.path.exists(target_dir_abs): # Ensure path exists
+                free_bytes = ctypes.c_ulonglong(0)
+                total_bytes = ctypes.c_ulonglong(0)
+                total_free_bytes = ctypes.c_ulonglong(0) # Total free including reserved for sys
+                # Call Windows API GetDiskFreeSpaceExW
+                success = ctypes.windll.kernel32.GetDiskFreeSpaceExW(
+                    ctypes.c_wchar_p(target_dir_abs), # Path
+                    ctypes.pointer(free_bytes),        # Free bytes available to caller
+                    ctypes.pointer(total_bytes),       # Total bytes on volume
+                    ctypes.pointer(total_free_bytes)   # Total free bytes on volume
+                )
+                if success:
+                    free_gb = round(free_bytes.value / (1024**3), 1)
+                    total_gb = round(total_bytes.value / (1024**3), 1)
+                    used_bytes = total_bytes.value - free_bytes.value
+                    used_percent = 0
+                    if total_bytes.value > 0:
+                        used_percent = round((used_bytes / total_bytes.value) * 100, 1)
+
+                    free_space_info = {
+                        "free_gb": free_gb,
+                        "total_gb": total_gb,
+                        "used_percent": used_percent,
+                        "path": current_path or "Root"
+                    }
+                    app.logger.debug(f"Windows Free space: {free_space_info}")
+                else:
+                    app.logger.error(f"GetDiskFreeSpaceExW failed for '{target_dir_abs}'. Error code: {ctypes.GetLastError()}")
+            else:
+                app.logger.warning(f"Cannot get free space: Absolute path does not exist '{target_dir_abs}'")
+
+        elif system_type == "Linux" or system_type == "Darwin": # POSIX systems
+             if os.path.exists(target_dir_abs):
+                stats = os.statvfs(target_dir_abs)
+                free_bytes = stats.f_frsize * stats.f_bavail
+                total_bytes = stats.f_frsize * stats.f_blocks
+                free_gb = round(free_bytes / (1024**3), 1)
+                total_gb = round(total_bytes / (1024**3), 1)
+                used_bytes = total_bytes - free_bytes
+                used_percent = 0
+                if total_bytes > 0:
+                    used_percent = round((used_bytes / total_bytes) * 100, 1)
+
+                free_space_info = {
+                    "free_gb": free_gb,
+                    "total_gb": total_gb,
+                    "used_percent": used_percent,
+                    "path": current_path or "Root"
+                }
+                app.logger.debug(f"POSIX Free space: {free_space_info}")
+             else:
+                 app.logger.warning(f"Cannot get free space: Absolute path does not exist '{target_dir_abs}'")
+        else:
+            app.logger.warning(f"Unsupported OS type '{system_type}' for free space calculation.")
+
+    except ImportError as e:
+         app.logger.warning(f"Could not import module needed for disk stats (likely 'ctypes' on non-Windows): {e}")
+    except OSError as e:
+        app.logger.error(f"OSError getting disk stats for '{target_dir_abs}': {e}")
+    except Exception as e:
+        app.logger.error(f"Unexpected error getting disk stats for '{target_dir_abs}': {e}", exc_info=True)
+    # --- End Get Free Space ---
 
     # Get sorted items list from file_utils
     all_items_unpaginated, is_image_only_folder = file_utils.get_folder_contents_with_ids(
@@ -201,6 +278,7 @@ def browse(subpath):
         items=items_to_display,
         current_path=current_path,
         current_folder_name=current_folder_name,
+        free_space=free_space_info,
         breadcrumbs=breadcrumbs, # Pass calculated breadcrumbs
         up_link_url=up_link_url,
         is_image_only_folder=is_image_only_folder,
