@@ -36,10 +36,10 @@ body {
 
 .rainbow {
     text-align: center;
-    text-decoration: none;
+    text-shadow: 1px 1px 2px pink;
     font-size: 32px;
-    font-family: fantasy;
-    letter-spacing: 5px;
+    font-weight: bold;
+    letter-spacing: 2px;
 }
 .rainbow_text_animated {
     background: linear-gradient(to right, #6666ff, #0099ff , #00ff00, #ff3399, #6666ff);
@@ -170,7 +170,7 @@ h1.browser-title { border-bottom: 1px solid #444; padding-bottom: 10px; color: #
 .item-info { flex-grow: 1; display: flex; align-items: center; gap: 10px; min-width: 200px; overflow: hidden; }
 .item-icon { font-size: 1.3em; min-width: 25px; text-align: center; flex-shrink: 0; }
 .item-name { color: #e0e0e0; text-decoration: none; flex-grow: 1; margin-right: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-name.folder-link { color: #00bcd4; font-weight: bold; } .item-name.folder-link:hover { text-decoration: underline; }
+.item-name.folder-link { color: #e0e0e0; font-weight: bold; } .item-name.folder-link:hover { text-shadow: 1px 1px 5px rgb(12, 12, 12); }
 .item-name.problematic { color: #ffcc00; font-style: italic; } .item-name.problematic::after { content: ' ⚠️'; margin-left: 5px; display: inline-block; }
 .item-size { font-size: 0.85em; color: #aaa; white-space: nowrap; margin-left: auto; padding-left: 10px; flex-shrink: 0;}
 /* Item Action Buttons (General) */
