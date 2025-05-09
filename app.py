@@ -36,7 +36,7 @@ import file_utils # Import file system utilities
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024 # 500 MB max upload size
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024 #    10 GB max upload size
 # Suppress excessive Werkzeug path decoding logs if desired
 # logging.getLogger('werkzeug').setLevel(logging.WARNING)
 

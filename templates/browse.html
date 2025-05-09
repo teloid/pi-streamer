@@ -335,7 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const detailItem = document.createElement('li');
                 // --- END DECLARATION ---
 
-                const MAX_SINGLE_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB example
+                const MAX_SINGLE_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB limit upload
                 if (file.size > MAX_SINGLE_FILE_SIZE) {
                     detailItem.textContent = `❌ ${file.name} (File too large - max ${MAX_SINGLE_FILE_SIZE / (1024*1024)} MB)`;
                     errorCount++;
