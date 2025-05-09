@@ -36,7 +36,7 @@ import file_utils # Import file system utilities
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024 #    10 GB max upload size
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024 # 10 GB max upload size   
 # Suppress excessive Werkzeug path decoding logs if desired
 # logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
@@ -390,7 +390,7 @@ def play_video_page(parent_path_in_url, item_id):
     next_link_url = url_for('play_video_page', parent_path_in_url=cleaned_parent_path, item_id=next_id) if next_id else None
     back_link_url = url_for('browse', subpath=cleaned_parent_path)
     initial_stream_url = url_for('stream_media_by_id', parent_path_in_url=cleaned_parent_path, item_id=item_id)
-    display_filename = os.path.basename(item_full_relative_path); is_problematic_filename = any(c > '\x7f' for c in display_filename)
+    display_filename = os.path.basename(item_full_relative_path); is_problematic_filename = None
     mime_type, _ = mimetypes.guess_type(target_file_abs); mime_type = mime_type or 'video/mp4'
     return render_template('player_video.html', display_filename=display_filename, back_link_url=back_link_url, quality_options=quality_options, is_problematic_filename=is_problematic_filename, prev_link_url=prev_link_url, next_link_url=next_link_url, initial_stream_url=initial_stream_url, initial_mime_type=mime_type, parent_path_json=cleaned_parent_path)
 
@@ -410,7 +410,7 @@ def play_audio_page(parent_path_in_url, item_id):
     next_link_url = url_for('play_audio_page', parent_path_in_url=cleaned_parent_path, item_id=next_id) if next_id else None
     back_link_url = url_for('browse', subpath=cleaned_parent_path)
     stream_url = url_for('stream_media_by_id', parent_path_in_url=cleaned_parent_path, item_id=item_id)
-    display_filename = os.path.basename(item_full_relative_path); is_problematic_filename = any(c > '\x7f' for c in display_filename)
+    display_filename = os.path.basename(item_full_relative_path); is_problematic_filename = None
     mime_type, _ = mimetypes.guess_type(target_file_abs); mime_type = mime_type or 'audio/mpeg'
     return render_template('player_audio.html', display_filename=display_filename, back_link_url=back_link_url, stream_url=stream_url, mime_type=mime_type, is_problematic_filename=is_problematic_filename, prev_link_url=prev_link_url, next_link_url=next_link_url)
 
