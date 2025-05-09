@@ -328,9 +328,86 @@ document.addEventListener('DOMContentLoaded', function() {
             event.preventDefault(); const files = fileInput.files; if (!files || files.length === 0) { alert("Please select files."); fileInputLabel.innerHTML = originalLabelText; return; }
             const totalFiles = files.length; let uploadedCount = 0; let errorCount = 0; let failedFilesInfo = []; const uploadUrl = this.action;
             uploadProgressDiv.style.display = 'block'; uploadDetailsList.innerHTML = ''; submitButton.disabled = true; submitButton.textContent = 'Uploading...'; progressBar.value = 0; progressText.textContent = `Starting upload of ${totalFiles} file(s)...`; fileInputLabel.innerHTML = originalLabelText;
-            for (let i = 0; i < totalFiles; i++) { const file = files[i]; const formData = new FormData(); formData.append('file', file); progressText.textContent = `Uploading ${i + 1}/${totalFiles}: ${file.name}`; const detailItem = document.createElement('li'); detailItem.textContent = `⏳ ${file.name}`; uploadDetailsList.appendChild(detailItem); uploadDetailsList.scrollTop = uploadDetailsList.scrollHeight; try { const response = await fetch(uploadUrl, { method: 'POST', body: formData }); const responseData = await response.json(); if (response.ok && responseData.success) { detailItem.textContent = `✅ ${responseData.filename || file.name}`; uploadedCount++; } else { const errorMsg = responseData.error || `HTTP Error ${response.status}`; detailItem.textContent = `❌ ${file.name} (${errorMsg})`; errorCount++; failedFilesInfo.push(`${file.name} (${errorMsg})`); } } catch (error) { const errorMsg = `Network Error`; detailItem.textContent = `❌ ${file.name} (${errorMsg})`; errorCount++; failedFilesInfo.push(`${file.name} (${errorMsg})`); } progressBar.value = ((i + 1) / totalFiles) * 100; }
-            progressBar.value = 100; let summary = `Finished: ${uploadedCount} uploaded.`; if (errorCount > 0) { summary += ` ${errorCount} failed.`; } progressText.textContent = summary; submitButton.disabled = false; submitButton.textContent = '② Upload Selected';
-            let alertMessage = summary; if (failedFilesInfo.length > 0) { alertMessage += "\n\nFailed files:\n- " + failedFilesInfo.join("\n- "); } alert(alertMessage); window.location.reload();
+            for (let i = 0; i < totalFiles; i++) { const file = files[i];
+                console.log(`DEBUG: Processing file ${i + 1}: ${file.name}`);
+
+                // --- DECLARE detailItem HERE, at the start of the loop iteration ---
+                const detailItem = document.createElement('li');
+                // --- END DECLARATION ---
+
+                const MAX_SINGLE_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB example
+                if (file.size > MAX_SINGLE_FILE_SIZE) {
+                    detailItem.textContent = `❌ ${file.name} (File too large - max ${MAX_SINGLE_FILE_SIZE / (1024*1024)} MB)`;
+                    errorCount++;
+                    failedFilesInfo.push(`${file.name} (File too large)`);
+                    progressBar.value = ((i + 1) / totalFiles) * 100; // Update progress for skipped file
+                    continue; // Skip this file
+}
+
+                // Set initial text for the detail item
+                detailItem.textContent = `⏳ Preparing: ${file.name}`;
+                if (uploadDetailsList) {
+                    uploadDetailsList.appendChild(detailItem);
+                    uploadDetailsList.scrollTop = uploadDetailsList.scrollHeight;
+                }
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                if (progressText) progressText.textContent = `Uploading ${i + 1}/${totalFiles}: ${file.name}`;
+                // Update detailItem text before fetch
+                detailItem.textContent = `⏳ Uploading: ${file.name}`;
+
+
+                try {
+                    console.log(`DEBUG: Fetching to ${uploadUrl} for ${file.name}`);
+                    const response = await fetch(uploadUrl, { method: 'POST', body: formData });
+                    console.log(`DEBUG: Response status for ${file.name}: ${response.status}`);
+                    const responseData = await response.json();
+                    console.log(`DEBUG: Response data for ${file.name}:`, responseData);
+
+                    if (response.ok && responseData.success) {
+                        detailItem.textContent = `✅ ${responseData.filename || file.name}`;
+                        uploadedCount++; // Ensure these are defined in the outer scope of addEventListener
+                    } else {
+                        const errorMsg = responseData.error || `HTTP Error ${response.status}`;
+                        detailItem.textContent = `❌ ${file.name} (${errorMsg})`;
+                        errorCount++; // Ensure defined
+                        failedFilesInfo.push(`${file.name} (${errorMsg})`); // Ensure defined
+                    }
+                } catch (error) {
+                    console.error(`DEBUG: Catch block error for ${file.name}:`, error);
+                    const errorMsg = `Network/Fetch Error`;
+                    // Now detailItem is guaranteed to be in scope here
+                    detailItem.textContent = `❌ ${file.name} (${errorMsg})`;
+                    errorCount++; // Ensure defined
+                    failedFilesInfo.push(`${file.name} (${errorMsg})`); // Ensure defined
+                }
+
+                if (progressBar) progressBar.value = ((i + 1) / totalFiles) * 100;
+            } // End for loop
+
+            // Need to declare these variables in the scope of the submit listener
+            // if they are not already, or ensure they are passed/accessible.
+            // Let's assume uploadedCount, errorCount, failedFilesInfo are declared
+            // at the beginning of the async function as they were.
+
+            console.log("DEBUG: Exited file loop.");
+            // ... (Final Summary logic: progressBar, progressText, alert, reload) ...
+            if (progressBar) progressBar.value = 100;
+            let summary = `Finished: ${uploadedCount} uploaded successfully.`; // Ensure uploadedCount is defined in this scope
+            if (errorCount > 0) { summary += ` ${errorCount} failed.`; } // Ensure errorCount is defined
+            if (progressText) progressText.textContent = summary;
+            console.log("DEBUG: Upload summary generated.");
+
+            submitButton.disabled = false;
+            submitButton.textContent = '② Upload Selected';
+
+            let alertMessage = summary;
+            if (failedFilesInfo.length > 0) { alertMessage += "\n\nFailed files:\n- " + failedFilesInfo.join("\n- "); } // Ensure failedFilesInfo is defined
+            alert(alertMessage);
+            console.log("DEBUG: Reloading page.");
+            window.location.reload();
         });
      })();
 
